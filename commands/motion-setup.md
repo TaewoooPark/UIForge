@@ -48,10 +48,14 @@ source — do **not** alter it):
   below (`pnpm add …`, `yarn add …`, `bun add …`, or `npm install …`).
 - `motion` and `lucide-react` are installed (check `package.json`
   dependencies). If missing, offer to install them with the detected manager.
-- A `cn` helper exists at `lib/utils.ts` (or the path this project's
-  `components.json` `aliases.utils` points to). If absent, create it:
+- A `cn` helper exists at the path this project's `components.json`
+  `aliases.utils` resolves to (default `lib/utils.ts`). If absent, create it —
+  **match the project's language**: for a TypeScript project write `.ts`; for a
+  JS-only project (`components.json` has `"tsx": false`) write `lib/utils.js`
+  with the type annotations dropped:
 
   ```ts
+  // TypeScript (lib/utils.ts)
   import { clsx, type ClassValue } from 'clsx'
   import { twMerge } from 'tailwind-merge'
 
@@ -59,7 +63,17 @@ source — do **not** alter it):
     return twMerge(clsx(inputs))
   }
   ```
-  (needs `clsx` and `tailwind-merge` — offer to install if missing.)
+  ```js
+  // JavaScript (lib/utils.js) — when components.json "tsx": false
+  import { clsx } from 'clsx'
+  import { twMerge } from 'tailwind-merge'
+
+  export function cn(...inputs) {
+    return twMerge(clsx(inputs))
+  }
+  ```
+  (needs `clsx` and `tailwind-merge` — offer to install with the detected
+  manager if missing.)
 
 ## 4. Verify the install path
 

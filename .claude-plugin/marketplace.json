@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Motion art-direction for Claude Code — the motion-director plugin.",
-    "version": "1.2.1"
+    "version": "1.3.0"
   },
   "plugins": [
     {
       "name": "motion-director",
       "source": "./",
       "description": "Motion art-director for Motion-Primitives — installs taste, restraint, and orchestration on top of the component registry. Bundles the shadcn MCP so components install in natural language.",
-      "version": "1.2.1",
+      "version": "1.3.0",
       "author": {
         "name": "Taewoo Park"
       },
