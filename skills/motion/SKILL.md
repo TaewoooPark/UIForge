@@ -1,9 +1,10 @@
 ---
-name: motion-primitives-director
+name: motion
 description: >-
-  Art-directs motion for React/Next.js + Tailwind interfaces built with
-  Motion-Primitives (the shadcn-style copy-in registry, powered by Motion / ex
-  Framer Motion). Use whenever you build or polish a landing page, hero,
+  UIForge's motion layer — art-directs motion for React/Next.js + Tailwind
+  interfaces built with Motion-Primitives (the shadcn-style copy-in registry,
+  powered by Motion / ex Framer Motion). Use whenever you build or polish a
+  landing page, hero,
   dashboard, pricing table, feature section, empty state, or any screen where
   motion is in play — adding animations, transitions, scroll reveals, hover or
   press micro-interactions, loading states, or when asked to make a screen feel
