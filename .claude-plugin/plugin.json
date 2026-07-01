@@ -1,6 +1,6 @@
 {
   "name": "motion-director",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Motion art-director for Motion-Primitives — installs taste, restraint, and orchestration on top of the component registry. Use for building or elevating any UI, landing page, hero, or interaction with motion.",
   "author": { "name": "Taewoo Park" },
   "homepage": "https://github.com/TaewoooPark/motion-director",

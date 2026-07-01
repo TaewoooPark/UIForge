@@ -1,7 +1,7 @@
 ---
 description: Prepare the current project for Motion-Primitives — ensure shadcn init, the @motion-primitives registry, and the motion/lucide-react/cn prerequisites.
 argument-hint: "[optional: component to install after setup, e.g. text-effect]"
-allowed-tools: Read, Edit, Write, Bash(npx:*), Bash(npm:*), Bash(pnpm:*), Bash(ls:*), Bash(cat:*), Bash(test:*)
+allowed-tools: Read, Edit, Write, Bash(npx:*), Bash(npm:*), Bash(pnpm:*), Bash(yarn:*), Bash(bun:*), Bash(ls:*), Bash(cat:*), Bash(test:*)
 ---
 
 You are wiring the **current target project** so Motion-Primitives components
@@ -41,8 +41,12 @@ source — do **not** alter it):
 
 ## 3. Ensure runtime prerequisites
 
+- **Detect the package manager first** from the lockfile so you never mix
+  managers: `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, `bun.lockb` → bun,
+  else `package-lock.json`/none → npm. Use that manager's add syntax for every
+  offer below (`pnpm add …`, `yarn add …`, `bun add …`, or `npm install …`).
 - `motion` and `lucide-react` are installed (check `package.json`
-  dependencies). If missing, offer: `npm install motion lucide-react`.
+  dependencies). If missing, offer to install them with the detected manager.
 - A `cn` helper exists at `lib/utils.ts` (or the path this project's
   `components.json` `aliases.utils` points to). If absent, create it:
 

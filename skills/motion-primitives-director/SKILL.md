@@ -72,7 +72,7 @@ first is how you end up directing.
 6. **Install from the registry. Never hand-write component source.** The
    registry is the source of truth. **First ensure the target project can
    resolve the registry** (see "Ensure the registry" below) — then add each
-   component with `npx shadcn@latest add "@motion-primitives/<slug>"`, or the
+   component with `npx shadcn@latest add @motion-primitives/<slug>`, or the
    direct forms `npx shadcn@latest add "https://motion-primitives.com/c/<slug>.json"`
    / `npx motion-primitives@latest add <slug>`, and compose. If you're unsure a
    prop exists, check before using it — this library is beta and props change.

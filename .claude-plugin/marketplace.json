@@ -1,0 +1,20 @@
+{
+  "name": "motion-director",
+  "owner": { "name": "Taewoo Park", "url": "https://github.com/TaewoooPark" },
+  "metadata": {
+    "description": "Motion art-direction for Claude Code — the motion-director plugin.",
+    "version": "1.2.0"
+  },
+  "plugins": [
+    {
+      "name": "motion-director",
+      "source": "./",
+      "description": "Motion art-director for Motion-Primitives — installs taste, restraint, and orchestration on top of the component registry. Bundles the shadcn MCP so components install in natural language.",
+      "version": "1.2.0",
+      "author": { "name": "Taewoo Park" },
+      "homepage": "https://github.com/TaewoooPark/motion-director",
+      "license": "MIT",
+      "keywords": ["motion", "animation", "motion-primitives", "framer-motion", "shadcn", "react", "nextjs", "tailwind", "ui", "art-direction"]
+    }
+  ]
+}
