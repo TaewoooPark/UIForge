@@ -24,10 +24,22 @@ their step.
    motion with **`uiforge:motion`** (one signature, reduced-motion) and copy with
    **`uiforge:content`** (outcome labels, real states, no hype). Design every
    reachable state (loading / empty / error), not just the happy path.
-6. **Critique + subtract** — run **`/uiforge:critique`**: judge the rendered
-   result blind, grep the anti-slop patterns, and **remove the one least-justified
-   thing**.
+6. **Enforce — loop until the Gate passes (this is not one pass):**
+   a. Run `node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-lint.mjs . --strict`.
+   b. If it exits non-zero, **fix the exact violations it names** — promote raw
+      hex to tokens, swap a default/system font for a kit face
+      (`${CLAUDE_PLUGIN_ROOT}/tools/kits/`), drop the purple/gradient, add the
+      reduced-motion path, snap off-grid spacing — then **go back to (a).** Loop
+      until it exits 0 (cap ~5 rounds; if still stuck, report exactly what and why).
+   c. **Adversarial slop detector** — run the design-director's
+      `references/slop-detector.md`: render + screenshot the view (normal **and**
+      `prefers-reduced-motion`), then use an *implementation-blind* judge (a
+      subagent given only the screenshots) to try to prove a machine made it.
+      Fix every tell it cites; re-render; re-judge until **CLEAN**.
+   d. **Forced subtraction** — remove the single least-justified element, then
+      confirm the linter still exits 0.
 
-Then report: the thesis, the chosen direction, the emitted signature (palette /
-type ratio / spacing / motion), what you installed and from where, the one
-signature moment — and what you subtracted.
+Do not report "done" until the linter exits 0 **and** the detector returns CLEAN.
+Then report: the thesis, the chosen direction + kit, the emitted signature
+(palette / face / type ratio / spacing / motion), what you installed and from
+where, the one signature moment, the final linter score, and what you subtracted.

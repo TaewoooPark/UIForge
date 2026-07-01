@@ -58,6 +58,15 @@ node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-lint.mjs <project-dir> --strict
 Fix every BLOCKER; resolve or justify each warning; **re-run until it exits 0.**
 Do not declare the view done while the linter fails.
 
+## The adversarial slop detector (the real bar)
+
+The linter catches the grep-able; the pixels hide the rest. Run
+[`slop-detector.md`](slop-detector.md) as an **implementation-blind** pass — a
+subagent given only the rendered screenshots, told to *prove a machine made
+this.* If it returns **AI-DETECTED**, fix every cited tell, re-render, re-judge
+until **CLEAN**. The bar is not "0 blockers" — it's "an adversary with the pixels
+cannot prove it's AI."
+
 ## The forced subtraction (mandatory — the step others skip)
 
 > Identify the single least-justified element, color, shadow, or animation in the

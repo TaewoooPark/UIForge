@@ -44,13 +44,23 @@ arbitrary values, off-grid spacing, maxed radius+shadow, gradient overuse,
 slate/zinc defaults, infinite loops, missing tokens). **Re-run until it exits 0.
 Do not report "done" while the linter fails.**
 
-## 4. Forced subtraction (mandatory)
+## 4. Adversarial slop detector (the real bar)
+
+The linter catches the grep-able; this catches the *gestalt*. Run the
+design-director's `references/slop-detector.md` as an **implementation-blind**
+pass — ideally a subagent (Task tool) given **only the screenshots** (normal +
+reduced-motion), told to *prove a machine made this*. If it returns
+**AI-DETECTED**, fix every tell it cites, re-render, and re-judge until **CLEAN**.
+The bar is not "0 linter blockers" — it's "an adversary with the pixels can't
+prove it's AI."
+
+## 5. Forced subtraction (mandatory)
 
 Identify the **single least-justified** element, color, shadow, or animation and
-**remove it**. Re-view. If removing it hurt, restore it and cut the next-weakest —
-but something goes.
+**remove it**. Re-view; confirm the linter still exits 0. If removing it hurt,
+restore it and cut the next-weakest — but something goes.
 
-## 5. Report
+## 6. Report
 
 Give a pass/fail verdict per axis, the grep hits and their resolution, **what you
 removed**, and — if you rendered it — attach or reference the two screenshots.

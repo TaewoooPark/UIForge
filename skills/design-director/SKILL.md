@@ -166,7 +166,8 @@ frontend-design guidance.
 | [`references/anti-slop.md`](references/anti-slop.md) | Always keep near. The named tells, grep lint patterns, banned copy, calibration targets. |
 | [`references/directions.md`](references/directions.md) | Step 2. Commit to one aesthetic point of view — each with a concrete type/color/space/motion signature. |
 | [`references/registry-map.md`](references/registry-map.md) | Step 4. The taste-graded registry allowlist (restrained vs maximalist) + provenance. |
-| [`references/critique.md`](references/critique.md) | Step 6–7. The blind rubric, the grep pass, and the forced-subtraction gate. |
+| [`references/critique.md`](references/critique.md) | Step 6–7. The blind rubric, the linter gate, and the forced-subtraction gate. |
+| [`references/slop-detector.md`](references/slop-detector.md) | Step 6. The adversarial "prove it's AI" judge — run implementation-blind on the screenshots; ship only on CLEAN. |
 | skill **`uiforge:design-tokens`** | Step 3. Emit and enforce `tokens.css` + `motion.ts` (color roles, type scale, 8px space, radius/shadow). |
 | skill **`uiforge:motion`** | Step 5. The motion layer — one signature, the easing/spring canon, Motion-Primitives, reduced-motion. |
 | skill **`uiforge:content`** | Step 5. Microcopy — outcome-labels, error/empty states, the hype blocklist, the specificity test. |

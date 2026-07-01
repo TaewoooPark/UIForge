@@ -1,6 +1,6 @@
 {
   "name": "uiforge",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Forge masterpiece UI, not AI slop. An art-directing plugin that forces a deliberate choice on every design axis (type, color, space, motion), sources components from vetted registries, and gates output on forced-subtraction + critique. Use for building or elevating any UI, landing page, hero, dashboard, or interaction.",
   "author": {
     "name": "Taewoo Park"
