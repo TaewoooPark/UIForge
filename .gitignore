@@ -1,0 +1,15 @@
+# Build brief (kept local — not part of the published skill)
+CLAUDE.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Node (in case the skill grows tooling later)
+node_modules/
+npm-debug.log*
+.env
+.env.local
