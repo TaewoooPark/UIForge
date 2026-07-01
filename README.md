@@ -54,20 +54,21 @@
 
 ## Proof
 
-Same prompt, same model, same starter — **the only variable is the plugin** (two
-isolated headless Claude Code runs, `--setting-sources project` ± the plugin, so
-nothing else can help either side).
+Same brief, same model, same starter — the only variable is the plugin. Two
+isolated headless Claude Code runs (`--setting-sources project`, so no other
+skill can help either side); the **before** is a plain prompt with no plugin, the
+**after** uses UIForge via `/uiforge:forge` (its enforcement loop). Both graded by
+the shipped linter (`tools/uiforge-lint.mjs`).
 
-<p align="center"><img src="./docs/before-after.png" width="900" alt="Before/after: no plugin vs UIForge — UIForge breaks the centered SaaS template into an asymmetric editorial layout with a solid headline and one restrained accent"></p>
-<p align="center"><em>Building the same landing top (nav + hero + features). Without the plugin: the centered SaaS template — gradient headline text, everything symmetric, a big empty middle. With UIForge: an asymmetric, editorial layout — left-aligned confident hierarchy, one restrained accent, a solid (not gradient) headline, and the page <code>&lt;title&gt;</code> set.</em></p>
+<p align="center"><img src="./docs/before-after.png" width="900" alt="Before/after: no plugin (lint grade F, 3 blockers, centered template) vs UIForge /forge (lint grade A+, 0 blockers, asymmetric editorial with a real installed typeface)"></p>
+<p align="center"><em>Building the same landing top (nav + hero + features). <b>Before</b> (no plugin): the centered SaaS template — gradient headline text, a system font, an indigo accent, a big empty middle → <b>lint grade F (score 206, 3 blockers)</b>. <b>After</b> (UIForge /forge): an asymmetric editorial layout with a real <b>installed</b> typeface (Hanken Grotesk), one restrained accent, a solid headline, an emitted <code>tokens.css</code> + <code>motion.ts</code>, and a reduced-motion path → <b>lint grade A+ (score 0, 0 blockers)</b>.</em></p>
 
-The plugin's largest, most visible effect is on the axis hardest to fix by
-prompting — **layout & hierarchy**: it breaks the centered template, drops the
-gradient headline (gradient uses **14 → 5**), and commits to a point of view. Why
-it matters: the **aesthetic-usability effect** (Kurosu & Kashimura, 1995) shows a
-beautiful interface is *perceived* as more usable and earns more trust. (An
-earlier motion-only run measured the same discipline on the animation layer:
-[the experiment](https://github.com/TaewoooPark/UIForge#proof) is reproducible.)
+The difference is not a nicer prompt — it's the **Gate**: UIForge emits a design
+signature as tokens, sources a real face from a kit, then **loops** (build → lint
+→ fix) until the linter exits 0, and an adversary given only the pixels can't
+prove a machine made it. Why it matters: the **aesthetic-usability effect**
+(Kurosu & Kashimura, 1995) shows a beautiful interface is *perceived* as more
+usable and earns more trust. Reproduce it: `node tools/uiforge-lint.mjs <dir>`.
 
 ## The forge
 
