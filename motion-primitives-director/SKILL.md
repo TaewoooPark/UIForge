@@ -123,26 +123,31 @@ export const ease = {
 } as const
 
 export const duration = {
-  fast: 0.16,   // micro-interactions, hovers, presses
-  base: 0.24,   // standard entrances
-  slow: 0.4,    // the signature moment only
+  fast: 0.12,   // micro-interactions, hovers, presses
+  base: 0.18,   // standard entrances
+  slow: 0.24,   // the signature moment (precise keeps even this snappy)
 } as const
 
 // Use springs OR eases as your language — not both scattered at random.
 export const spring = {
-  default: { type: 'spring', stiffness: 400, damping: 40, mass: 1 }, // snappy, ~no overshoot
+  default: { type: 'spring', stiffness: 450, damping: 45, mass: 1 }, // snappy, ~no overshoot
 } as const
 
-export const stagger = 0.04 // 40ms between siblings
+export const stagger = 0.03 // 30ms between siblings
 ```
 
 Non-negotiable numbers, whatever the direction:
 
 - **Entrances 200–400ms. Exits 150–250ms. Exits are always faster than
   entrances** — things should leave quicker than they arrive, or the UI feels
-  like it's wading through mud.
+  like it's wading through mud. **The one sanctioned exception:** the single
+  signature moment may run longer — up to ~700ms — because it is the one beat
+  the whole view is built around. Everything else holds to 200–400ms.
 - **Stagger 20–60ms between siblings.** Not 200ms. A 200ms stagger on six cards
-  is a 1.2-second wait that reads as a slideshow, not a reveal.
+  is a 1.2-second wait that reads as a slideshow, not a reveal. The lone
+  exception is the `editorial` direction, where you may go up to ~80ms
+  *precisely because* so few elements move — a slower cadence across three or
+  four blocks still reads as deliberate, not as a slideshow.
 - **Never hide anything important behind a delay > 600ms.** If the headline
   arrives at 900ms, you've made the user wait for the whole point of the page.
 - **One easing/spring language across the entire surface.** Mixing a bouncy

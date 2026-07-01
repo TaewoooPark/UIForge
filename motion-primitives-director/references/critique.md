@@ -38,10 +38,15 @@ obvious.
 ## 3. One motion signature — physics consistency
 
 - [ ] **Does every `transition`/spring derive from the project `motion.ts`?** No
-  stray `duration: 0.7` or a random bouncy spring that doesn't match the rest.
+  stray `duration: 0.55` on a hover, or a random bouncy spring that doesn't match
+  the rest.
 - [ ] **Are exits faster than entrances?** (Exit 150–250ms vs enter 200–400ms.)
+  The single signature moment is the only thing allowed past 400ms (up to
+  ~700ms); every other entrance stays within 200–400ms.
 - [ ] **Stagger between 20–60ms?** Not 100–200ms. (Remember: `animated-group`
   defaults to 0.1 and `text-effect`'s per-line default is 0.1 — override them.)
+  Up to ~80ms is allowed **only** in the `editorial` direction, where so few
+  elements move that a slower cadence still reads as deliberate.
 - [ ] **Nothing important behind a delay > 600ms?**
 - [ ] **Did you pass explicit transitions where the component ships none?**
   (`in-view`, `transition-panel`, `accordion`, `animated-background`, `tilt`,

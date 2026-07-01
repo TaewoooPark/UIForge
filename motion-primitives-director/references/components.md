@@ -71,10 +71,12 @@ nest it inside `InView`.
 ### `in-view` — role: **micro**
 Use to fire a reveal when a section scrolls into view. Key props: `variants`
 (default is **opacity only** — add your own y-offset/blur), `transition` (none
-by default — pass your signature), and `viewOptions: { once: true, margin }`.
+by default — pass your signature), `once` (top-level), and `viewOptions:
+{ once, margin, amount }` (passed straight to Motion's `useInView`).
 **`once` defaults falsy → it re-animates every single time the section
 re-enters the viewport.** That repeated fade is textbook slop — **always set
-`once`**, and use `margin` to trigger just before fully visible.
+`once`** (either the top-level prop or `viewOptions.once`), and use `margin` to
+trigger just before fully visible.
 
 ---
 

@@ -8,8 +8,11 @@ path that is the design's baseline, not an afterthought.
 
 All timings reference the `motion.ts` tokens from
 [`directions.md`](directions.md) (`ease.out`, `duration.*`, `spring.default`,
-`stagger`). Numbers shown assume the `precise/mechanical` scale; scale the
-*character* to your direction but keep the *counts and order*.
+`stagger`). Numbers shown assume the `precise/mechanical` scale for
+micro-interactions and functional entrances; the **single signature beat per
+view may run longer** (up to ~700ms) — the one sanctioned exception to the
+200–400ms entrance cap. Scale the *character* to your direction, but keep the
+*counts and order*.
 
 Wrap the whole app once so reduced-motion is real everywhere:
 
@@ -47,7 +50,7 @@ subhead/CTA. Do **not** reach for a second text effect.
 | t (ms) | element | how |
 |---|---|---|
 | 0 | nav, logo | present, static — no entrance |
-| 0–360 | headline | `text-effect` `per:'line'`, `preset:'fade'`, `segmentTransition={{ duration: 0.3, ease: ease.out }}`, container `staggerChildren: 0.06`, `delay: 0` |
+| 0–~360 | headline | `text-effect` `per:'line'`, `preset:'fade'`, `segmentTransition={{ duration: duration.slow, ease: ease.out }}` (the signature beat — bump toward ~0.5–0.6 in `soft`/`editorial`), container `staggerChildren: 0.06`, `delay: 0` |
 | ~260 | subhead | fade + `y: 8 → 0`, `duration.base`, starts as the headline's last line settles |
 | ~360 | primary CTA | fade, `duration.base`; then `magnetic` becomes live |
 
@@ -116,6 +119,8 @@ a row of peers (cards/logos) that benefit from a short stagger.
 
 ```tsx
 <InView
+  // this settle is the section's one signature beat (the entrance exception);
+  // ~0.5 reads well, precise can go ~0.3, editorial up to ~0.7
   variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
   transition={{ duration: 0.5, ease: ease.out }}
   viewOptions={{ once: true, margin: '0px 0px -15% 0px' }}

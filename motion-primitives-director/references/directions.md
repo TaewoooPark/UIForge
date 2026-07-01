@@ -109,10 +109,13 @@ export const duration = { fast: 0.2, base: 0.6, slow: 0.7 } as const
 export const stagger = 0.07 // 70ms — generous, but only across a FEW blocks
 ```
 
-- The one entrance runs **500–700ms** with a soft settle. Micro-interactions
-  stay fast (~150ms) and rare.
-- Generous stagger is allowed **only because there are so few moving elements** —
-  three or four blocks, not twenty cards.
+- The one entrance runs **500–700ms** with a soft settle. This is the sanctioned
+  signature-moment exception to the global 200–400ms entrance cap — it applies to
+  the single load entrance only; micro-interactions stay fast (~150ms) and rare.
+- Generous stagger (**up to ~80ms**, above the usual 20–60ms) is allowed here
+  **only because there are so few moving elements** — three or four blocks, not
+  twenty cards. This is the one direction that takes the stagger exception; the
+  scarcity is what keeps it from reading as a slideshow.
 
 **Fits:** In View (section reveals — set `once` so it fires a single time), Text
 Effect (`per: 'line'`, `preset: 'fade'` or `'fade-in-blur'`, once, for the
