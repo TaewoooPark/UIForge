@@ -115,7 +115,9 @@ whole stage.
 
 Emit this **before** you touch a component. Every `transition`/spring prop
 downstream references it. The concrete curves per direction live in
-`directions.md`; the shape is always this:
+`directions.md`, and the full named-curve / duration / spring vocabulary is in
+[`references/easing-canon.md`](references/easing-canon.md); the shape is always
+this:
 
 ```ts
 // motion.ts — one signature, derived everywhere. (Values shown: a precise/mechanical
@@ -266,6 +268,7 @@ arrives:
 | Read this | When |
 |---|---|
 | [`references/directions.md`](references/directions.md) | Step 2–3. Choosing the one direction and locking its exact signature values (easing, spring, duration, stagger). |
+| [`references/easing-canon.md`](references/easing-canon.md) | Step 3. The concrete vocabulary: named ease curves, duration guidelines, spring presets, the GPU rule, which tool for which motion. |
 | [`references/components.md`](references/components.md) | Step 5. After you know the moment, to map intent → component → verified physics → role. Read only the entries you need. |
 | [`references/recipes.md`](references/recipes.md) | Step 7. Composing a known pattern (hero, nav, scroll section, pricing, empty/loading) with exact sequence and timing. |
 | [`references/critique.md`](references/critique.md) | Step 8. The pre-ship rubric and the forced-subtraction pass. |

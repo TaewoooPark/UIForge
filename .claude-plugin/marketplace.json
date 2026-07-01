@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "UIForge — forge masterpiece UI (not AI slop) with Claude Code.",
-    "version": "2.2.0"
+    "version": "2.3.0"
   },
   "plugins": [
     {
       "name": "uiforge",
       "source": "./",
       "description": "Forge masterpiece UI, not AI slop. Forces a deliberate choice on every design axis (type, color, space, motion), sources components from vetted registries via the bundled shadcn MCP, and gates output on forced-subtraction + critique.",
-      "version": "2.2.0",
+      "version": "2.3.0",
       "author": {
         "name": "Taewoo Park"
       },
