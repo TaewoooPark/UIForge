@@ -63,6 +63,7 @@ function CAPTURE() {
   const idOf = new Map(); all.forEach((el, i) => idOf.set(el, i))
   const nodes = []
   for (const el of all) {
+    if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') continue   // capture <svg> whole, skip its internals
     const cs = getComputedStyle(el)
     if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) continue
     const r = el.getBoundingClientRect()
@@ -85,12 +86,17 @@ function CAPTURE() {
     if (txt) node.text = txt.slice(0, 400)
     if (tag === 'a') node.href = el.getAttribute('href') || undefined
     if (tag === 'img') { node.src = el.currentSrc || el.getAttribute('src') || undefined; node.alt = el.getAttribute('alt') || undefined }
-    if (tag === 'svg') node.svg = true
+    if (tag === 'svg') { try { node.svgHTML = el.outerHTML.slice(0, 40000) } catch { node.svg = true } }
     if (/^h[1-6]$/.test(tag)) node.level = +tag[1]
     nodes.push(node)
     if (nodes.length >= 2500) break
   }
-  return { viewport: V, url: location.href, title: document.title, nodes }
+  // the reference's own stylesheet links (they serve its webfonts) — re-injected by the
+  // reconstruction so text renders in the real face; the replayed inline styles win.
+  const sheets = [...document.querySelectorAll('link[rel="stylesheet"]')].map(l => l.href).filter(Boolean).slice(0, 24)
+  const fontFaces = []
+  try { for (const ss of document.styleSheets) { try { for (const rule of ss.cssRules) if (rule.constructor.name === 'CSSFontFaceRule') fontFaces.push(rule.cssText) } catch {} } } catch {}
+  return { viewport: V, url: location.href, title: document.title, sheets, fontFaces: fontFaces.slice(0, 60), nodes }
 }
 
 /* ------------------------- token dedup (design system) ------------------------- */
@@ -158,7 +164,7 @@ if (isMain) {
 
   const snap = await capture(target, { width: vw, height: vh })
   const tokens = tokenize(snap.nodes)
-  const out = { source: target, capturedAt: null, viewport: snap.viewport, title: snap.title, tokens, nodes: snap.nodes }
+  const out = { source: target, capturedAt: null, viewport: snap.viewport, title: snap.title, sheets: snap.sheets || [], fontFaces: snap.fontFaces || [], tokens, nodes: snap.nodes }
 
   if (argv.includes('--json')) { console.log(JSON.stringify(out, null, 2)); process.exit(0) }
   writeFileSync(outPath, JSON.stringify(out, null, 2) + '\n')

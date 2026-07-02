@@ -66,11 +66,12 @@ function styleOf(n) {
 }
 function render(n, depth) {
   if (depth > 40) return ''
+  if (n.svgHTML) return `<div style="${attr(styleOf(n))}">${n.svgHTML}</div>`  // replay the captured SVG whole
   const tag = /^[a-z][a-z0-9]*$/.test(n.tag) ? n.tag : 'div'
   const st = styleOf(n)
   let open = `<${tag} style="${attr(st)}"`
   if (n.href) open += ` href="${attr(n.href)}"`
-  if (tag === 'img') open += ` src="${attr(n.src || '')}"${n.alt ? ` alt="${attr(n.alt)}"` : ''}`
+  if (tag === 'img') open += ` src="${attr(n.src || '')}"${n.alt ? ` alt="${attr(n.alt)}"` : ''} width="${n.w}" height="${n.h}"`
   if (VOID.has(tag)) return open + '>'
   open += '>'
   let inner = ''
@@ -85,8 +86,12 @@ const body = roots.map(n => render(n, 0)).join('\n')
 const bodyStyle = mode === 'absolute'
   ? `margin:0;position:relative;width:${cap.viewport?.w || 1440}px;min-height:${Math.max(...nodes.map(n => n.y + n.h), 0)}px;background:#fff`
   : `margin:0;background:#fff`
+const sheetLinks = (cap.sheets || []).map(h => `<link rel="stylesheet" href="${attr(h)}">`).join('\n')
+const faces = (cap.fontFaces || []).length ? `<style>${cap.fontFaces.join('\n')}</style>` : ''
 const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(cap.title || 'clone')}</title>
-<style>*{box-sizing:border-box}html,body{margin:0}</style></head>
+${sheetLinks}
+${faces}
+<style>*{box-sizing:border-box}html,body{margin:0}img{max-width:none}</style></head>
 <body style="${attr(bodyStyle)}">
 ${body}
 </body></html>`
