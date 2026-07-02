@@ -14,7 +14,7 @@
     ],
     "typeRatio": 1.386,
     "accent": {
-      "hue": null,
+      "hue": 0,
       "budgetPct": 0
     },
     "gridUnit": 8,
@@ -29,7 +29,7 @@
   },
   "gate": {
     "contrastMin": 4.5,
-    "accentHue": null,
+    "accentHue": 0,
     "accentBudgetPct": 0,
     "gridUnit": 8,
     "typeRamp": [
