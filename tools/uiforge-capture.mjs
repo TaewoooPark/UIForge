@@ -61,6 +61,7 @@ function CAPTURE() {
   const directText = el => { let s = ''; for (const c of el.childNodes) if (c.nodeType === 3) s += c.textContent; return s.trim() }
   const all = [...document.querySelectorAll('body *')]
   const idOf = new Map(); all.forEach((el, i) => idOf.set(el, i))
+  const captured = new Set()   // elements we actually kept — so children reparent to the nearest KEPT ancestor
   const nodes = []
   for (const el of all) {
     if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') continue   // capture <svg> whole, skip its internals
@@ -76,8 +77,14 @@ function CAPTURE() {
     }
     const txt = directText(el)
     const tag = el.tagName.toLowerCase()
+    // reparent to the nearest ANCESTOR WE KEPT — box-less wrappers (display:contents,
+    // 0×0, opacity:0) are skipped, and pointing pid at a skipped element orphans the
+    // subtree to root. Ancestors precede this node in document order, so `captured` is
+    // already populated for them. This is what keeps e.g. a nav's links inside the nav.
+    let pe = el.parentElement
+    while (pe && !captured.has(pe)) pe = pe.parentElement
     const node = {
-      i: idOf.get(el), pid: el.parentElement ? (idOf.get(el.parentElement) ?? -1) : -1, tag,
+      i: idOf.get(el), pid: pe ? idOf.get(pe) : -1, tag,
       x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height),
       cls: (typeof el.className === 'string' ? el.className.trim().split(/\s+/).slice(0, 4).join(' ') : '') || undefined,
       role: el.getAttribute('role') || undefined,
@@ -97,6 +104,7 @@ function CAPTURE() {
       node[slot] = { content: content.replace(/^["']|["']$/g, '').slice(0, 120), style: ps }
     }
     nodes.push(node)
+    captured.add(el)
     if (nodes.length >= 2500) break
   }
   // the reference's own stylesheet links (they serve its webfonts) — re-injected by the

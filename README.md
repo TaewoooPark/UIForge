@@ -98,22 +98,24 @@ reference vs reconstruction:
 | site | nodes | similarity |
 |---|---|---|
 | a simple static page | 14 | **93%** |
-| **vercel.com** | 425 | **95.9%** |
-| linear.app | 1023 | 82.8% |
-| tailwindcss.com | 1126 | ~80% |
+| **vercel.com** | 425 | **95.8%** |
+| **linear.app** | 1023 | **92.8%** |
+| tailwindcss.com | 1122 | 71% |
 
-**Clean, mostly-static sites reproduce at 93–96% — near-identical.** On tall marketing
-homepages the *full-page* number sits around **80–84%**, but read that number honestly:
-it's a pixel overlay of the entire scroll height, so it's dominated by **cumulative
-vertical drift** — flow layout can't perfectly reproduce a section whose height came from
-absolutely-positioned art, and a few pixels of drift per section compound over a
-10,000px page. The **visible design matches far more closely than that number suggests**:
-the hero above is linear.app, and the nav, the color, the copy, and the headline — set in
-Linear's own **Inter Variable**, recovered by re-declaring its `@font-face` — are
-effectively identical. What genuinely can't be reproduced from computed styles is a
-running **canvas/WebGL** hero (Vercel's spinning triangle, Linear's animation) and
-**lazy/cross-origin media**. Fonts used to be on that list; they aren't anymore — see
-below. Reproduce any of this: `node tools/uiforge-capture.mjs <url>` then
+**Clean and medium sites reproduce at 93–96%, and even a dense marketing homepage like
+linear.app now lands at 92.8%** — nav, color, copy, and the headline in Linear's own
+**Inter Variable** (recovered by re-declaring its `@font-face`) are effectively identical,
+as the hero above shows. The number falls on the *longest, most layered* pages
+(tailwindcss.com, ~11,000px) for one honest reason: the score is a **full-page pixel
+overlay**, so it's dominated by **cumulative vertical drift** — flow layout can't perfectly
+reproduce a section whose height came from absolutely-positioned art, and a few pixels per
+section compound over a very long page. That metric actually *penalizes* a structurally
+complete reconstruction versus a broken-but-shorter one, so read it as a floor, not a
+ceiling: the visible design matches more closely than the tail number suggests. What
+genuinely can't be reproduced from computed styles is a running **canvas/WebGL** hero
+(Vercel's spinning triangle, Linear's animation) and **lazy/cross-origin media**. Fonts
+used to be on that list; they aren't anymore — see below. Reproduce any of this:
+`node tools/uiforge-capture.mjs <url>` then
 `node tools/uiforge-reconstruct.mjs capture.json` then `node tools/uiforge-diff.mjs <url> index.html`.
 
 ## Ethics — a redesign scaffold, not a passing-off clone
