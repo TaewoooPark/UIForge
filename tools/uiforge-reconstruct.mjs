@@ -60,7 +60,13 @@ function styleOf(n) {
   } else {
     // flow: pin the box size so content-less containers keep their footprint
     if (n.w) decl.push(`width:${n.w}px`)
-    if (n.h && (kids.get(n.i) || []).length === 0 && !n.text) decl.push(`min-height:${n.h}px`)
+    // Pin min-height only on a box flow can't reproduce on its own: an empty leaf, or a box
+    // whose children are ALL out of flow (absolute/fixed, so they add 0 flow height). Going
+    // more aggressive than this — pinning boxes that already hold in-flow content — inflates
+    // them into visible empty rectangles wherever text reflows even slightly, so we don't.
+    const ch = kids.get(n.i) || []
+    const allOut = ch.length > 0 && ch.every(c => { const p = (c.style || {}).pos; return p === 'absolute' || p === 'fixed' })
+    if (n.h && ((ch.length === 0 && !n.text) || allOut)) decl.push(`min-height:${n.h}px`)
   }
   return decl.join(';')
 }
@@ -97,12 +103,18 @@ const body = roots.map(n => render(n, 0)).join('\n')
 const bodyStyle = mode === 'absolute'
   ? `margin:0;position:relative;width:${cap.viewport?.w || 1440}px;min-height:${Math.max(...nodes.map(n => n.y + n.h), 0)}px;background:#fff`
   : `margin:0;background:#fff`
-const sheetLinks = (cap.sheets || []).map(h => `<link rel="stylesheet" href="${attr(h)}">`).join('\n')
-const faces = (cap.fontFaces || []).length ? `<style>${cap.fontFaces.join('\n')}</style>` : ''
+// Inject ONLY the recovered @font-face rules — not the raw stylesheets, which carry the
+// site's own resets/utilities and would fight our replayed inline styles. This alone
+// renders text in the reference's real webfont (fonts served ACAO:* load from file://).
+const faces = (cap.fontFaces || []).length ? `<style>\n${cap.fontFaces.join('\n')}\n</style>` : ''
 const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(cap.title || 'clone')}</title>
-${sheetLinks}
 ${faces}
-<style>*{box-sizing:border-box}html,body{margin:0}img{max-width:none}</style></head>
+<style>*{box-sizing:border-box}html,body{margin:0}img{max-width:none}
+/* neutralize UA-default chrome so it can't leak past the replayed inline styles:
+   native button borders, link underlines, list bullets. Captured values (emitted
+   inline) win over this by specificity, so real borders/underlines still render. */
+button,input,select,textarea{appearance:none;-webkit-appearance:none;background:transparent;border:0;border-radius:0;margin:0;font:inherit;color:inherit;text-align:inherit}
+a{text-decoration:none;color:inherit}ul,ol{list-style:none}fieldset{border:0;margin:0;padding:0}</style></head>
 <body style="${attr(bodyStyle)}">
 ${body}
 </body></html>`

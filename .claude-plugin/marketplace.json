@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "UIForge — clone any website's design into clean, editable React + Tailwind, with your content.",
-    "version": "3.22.1"
+    "version": "3.23.0"
   },
   "plugins": [
     {
       "name": "uiforge",
       "source": "./",
       "description": "Clone a website's design into a clean, editable Vite+React+Tailwind project populated with your content. Captures a reference's full design (colors, gradients, shadows, fonts, geometry, SVGs), extracts a Tailwind v4 theme, reconstructs it faithfully, and loops a visual diff until it matches — then QA's the clone for WCAG accessibility.",
-      "version": "3.22.1",
+      "version": "3.23.0",
       "author": {
         "name": "Taewoo Park"
       },

@@ -23,9 +23,9 @@
 </p>
 
 <p align="center">
-  <img src="./docs/clone-vercel.png?v=3220" alt="UIForge clone of vercel.com, reproduced from the capture alone: the original and the reconstruction side by side, 95.7% pixel-similar — same headline font, buttons, and logo strip." width="100%">
+  <img src="./docs/clone-linear.png?v=3230" alt="UIForge clone of linear.app, reproduced from the capture alone: the live site and the reconstruction side by side at the same scroll position — the same nav, the same headline in Linear's own Inter Variable webfont, the same copy." width="100%">
 </p>
-<p align="center"><sub><em><b>vercel.com, reproduced from the capture alone</b> — no hand-authoring. <code>capture → reconstruct</code> replays every element's exact styles, geometry, text, and SVGs. <b>95.7% pixel-similar</b> to the live site. Then swap in your content and export to an editable React + Tailwind project.</em></sub></p>
+<p align="center"><sub><em><b>linear.app, reproduced from the capture alone</b> — no hand-authoring, both panels at the same scroll. <code>capture → reconstruct</code> replays every element's exact styles, geometry, text, and SVGs, and re-declares the site's own <code>@font-face</code> so the headline renders in <b>Linear's real Inter Variable</b> — not a fallback. Then swap in your content and export to an editable React + Tailwind project.</em></sub></p>
 
 ---
 
@@ -92,22 +92,28 @@ may not.
 
 ## How faithful is it, honestly
 
-Measured (deterministic reconstruction, no hand-authoring), reference vs reconstruction:
+Measured (deterministic reconstruction, no hand-authoring), full-page pixel overlay of
+reference vs reconstruction:
 
 | site | nodes | similarity |
 |---|---|---|
 | a simple static page | 14 | **93%** |
-| **vercel.com** | 425 | **95.7%** |
-| linear.app | 1024 | 83.6% |
-| tailwindcss.com | 1126 | 80.4% |
+| **vercel.com** | 425 | **95.9%** |
+| linear.app | 1023 | 82.8% |
+| tailwindcss.com | 1126 | ~80% |
 
-**Clean, mostly-static sites reproduce at 93–96% — near-identical.** Font/canvas-heavy
-marketing homepages cap around **80–84%**, and the gap there is *fundamental, not
-unpatched*: webfonts are CORS-blocked to read and often proprietary, canvas/WebGL
-heroes can't be reproduced from computed styles, and some media is lazy or
-cross-origin. UIForge copies **structure, layout, typography, color, spacing, and
-SVGs** faithfully; it cannot recreate a running WebGL animation or a font it can't
-download. Reproduce any of these: `node tools/uiforge-capture.mjs <url>` then
+**Clean, mostly-static sites reproduce at 93–96% — near-identical.** On tall marketing
+homepages the *full-page* number sits around **80–84%**, but read that number honestly:
+it's a pixel overlay of the entire scroll height, so it's dominated by **cumulative
+vertical drift** — flow layout can't perfectly reproduce a section whose height came from
+absolutely-positioned art, and a few pixels of drift per section compound over a
+10,000px page. The **visible design matches far more closely than that number suggests**:
+the hero above is linear.app, and the nav, the color, the copy, and the headline — set in
+Linear's own **Inter Variable**, recovered by re-declaring its `@font-face` — are
+effectively identical. What genuinely can't be reproduced from computed styles is a
+running **canvas/WebGL** hero (Vercel's spinning triangle, Linear's animation) and
+**lazy/cross-origin media**. Fonts used to be on that list; they aren't anymore — see
+below. Reproduce any of this: `node tools/uiforge-capture.mjs <url>` then
 `node tools/uiforge-reconstruct.mjs capture.json` then `node tools/uiforge-diff.mjs <url> index.html`.
 
 ## Ethics — a redesign scaffold, not a passing-off clone
@@ -130,6 +136,7 @@ external-dependency Node; rendering uses Playwright.
 node tools/uiforge-capture.mjs   <url│file> [--out capture.json] [--viewport WxH]
       # render + extract every element's exact computed styles, geometry, text, SVGs,
       # assets, hierarchy + a deduped token set (palette, type, spacing, radii, shadows, fonts)
+      # + recovers the real @font-face rules server-side (past the browser's CORS wall)
 
 node tools/uiforge-theme.mjs     capture.json [--out-css theme.css] [--out-json theme.json]
       # infer semantic roles by usage → a Tailwind v4 @theme (bg/fg/muted/surface/border/accent)
@@ -168,7 +175,7 @@ so the baseline is faithful *by construction* — the styling is the site's own 
 not a guess. `uiforge-diff` then renders the reconstruction next to the original and
 reports, region by region, where it still differs, and the loop closes those gaps.
 
-The result is the opposite of "vibes": a copy you can measure (95.7% on vercel.com),
+The result is the opposite of "vibes": a copy you can measure (95.9% on vercel.com),
 delivered as an editable React + Tailwind project with your content and the design
 system extracted into an `@theme`.
 
@@ -182,8 +189,12 @@ Variable + Berkeley Mono) — the real design system, as a Tailwind v4 `@theme` 
 
 ## Honest limits
 
-- **Webfonts**: cross-origin font CSS is CORS-blocked to read, and many faces are
-  proprietary — text may fall back. Re-inject the reference's stylesheet or license the font.
+- **Webfonts** *(mostly solved)*: the browser can't read cross-origin `@font-face` rules
+  (CORS on `cssRules`), so capture now **fetches the reference's stylesheets server-side**
+  — where CORS doesn't apply — extracts the `@font-face` rules, and re-declares them with
+  absolute URLs. The font files themselves are almost always public (`Access-Control-Allow-Origin: *`),
+  so they load into the reconstruction and text renders in the **real face**. The residual:
+  a font served *without* permissive CORS, or one behind auth, still falls back.
 - **Canvas / WebGL / video**: not reproducible from computed styles. A screenshot
   fallback for those regions is future work.
 - **One snapshot**: JS-driven state, hover, and content behind auth aren't captured;

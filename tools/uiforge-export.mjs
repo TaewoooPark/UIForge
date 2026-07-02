@@ -64,12 +64,14 @@ const roots = kids.get(-1) || []
 const app = `export default function App() {\n  return (\n    <div style={{ minHeight: "100vh", background: "#fff" }}>\n${roots.map(n => toJSX(n, 0)).join('\n')}\n    </div>\n  )\n}\n`
 
 const theme = themePath ? readFileSync(themePath, 'utf8') : `@import "tailwindcss";`
+// The recovered @font-face rules (absolute, ACAO:* font URLs) render the real webfont.
+const fontCSS = (cap.fontFaces || []).length ? cap.fontFaces.join('\n') + '\n\n' : ''
 const files = {
   'package.json': JSON.stringify({ name: 'uiforge-clone', private: true, type: 'module', scripts: { dev: 'vite', build: 'vite build', preview: 'vite preview' }, dependencies: { react: '^18.3.1', 'react-dom': '^18.3.1' }, devDependencies: { '@tailwindcss/vite': '^4.0.0', '@vitejs/plugin-react': '^4.3.0', tailwindcss: '^4.0.0', vite: '^5.4.0' } }, null, 2) + '\n',
   'vite.config.ts': `import { defineConfig } from 'vite'\nimport react from '@vitejs/plugin-react'\nimport tailwindcss from '@tailwindcss/vite'\n\nexport default defineConfig({ plugins: [react(), tailwindcss()] })\n`,
-  'index.html': `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${(cap.title || 'clone').replace(/</g, '')}</title>${(cap.sheets || []).map(h => `<link rel="stylesheet" href="${h}">`).join('')}</head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>\n`,
+  'index.html': `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${(cap.title || 'clone').replace(/</g, '')}</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>\n`,
   'src/main.tsx': `import React from 'react'\nimport { createRoot } from 'react-dom/client'\nimport App from './App'\nimport './index.css'\n\ncreateRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)\n`,
-  'src/index.css': theme + '\n',
+  'src/index.css': fontCSS + theme + '\n',
   'src/App.tsx': app,
   'README.md': `# UIForge clone\n\nReconstructed from \`${cap.source || ''}\`.\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\nEdit \`src/App.tsx\` (content and structure) and \`src/index.css\` (the extracted \`@theme\` — palette, fonts, scale, radii, shadows). Styles are inline from the capture; lift repeated blocks into \`src/components/\` and map to Tailwind utilities as you go.\n`,
 }

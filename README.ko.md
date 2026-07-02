@@ -23,9 +23,9 @@
 </p>
 
 <p align="center">
-  <img src="./docs/clone-vercel.png?v=3220" alt="vercel.com을 캡처만으로 재현한 UIForge 클론. 원본과 재구성을 나란히 놓았고 픽셀 유사도는 95.7퍼센트다. 헤드라인 폰트, 버튼, 로고 스트립이 그대로다." width="100%">
+  <img src="./docs/clone-linear.png?v=3230" alt="linear.app을 캡처만으로 재현한 UIForge 클론. 라이브 사이트와 재구성을 같은 스크롤 위치에서 나란히 놓았다. 같은 내비게이션, Linear가 실제로 쓰는 Inter Variable 웹폰트로 렌더링된 같은 헤드라인, 같은 문구다." width="100%">
 </p>
-<p align="center"><sub><em><b>vercel.com을 캡처만으로 재현한 결과다.</b> 손으로 작성한 부분은 없다. <code>capture → reconstruct</code>가 모든 요소의 정확한 스타일, 기하 정보, 텍스트, SVG를 replay한다. 라이브 사이트와 <b>95.7% 픽셀 유사</b>하다. 그다음 당신의 콘텐츠를 채워 넣고 편집 가능한 React + Tailwind 프로젝트로 내보낸다.</em></sub></p>
+<p align="center"><sub><em><b>linear.app을 캡처만으로 재현한 결과다.</b> 손으로 작성한 부분은 없고 두 화면 모두 같은 스크롤 위치다. <code>capture → reconstruct</code>가 모든 요소의 정확한 스타일, 기하 정보, 텍스트, SVG를 replay하고, 사이트 자신의 <code>@font-face</code>를 다시 선언해 헤드라인이 대체 폰트가 아니라 <b>Linear의 진짜 Inter Variable</b>로 렌더링되게 한다. 그다음 당신의 콘텐츠를 채워 넣고 편집 가능한 React + Tailwind 프로젝트로 내보낸다.</em></sub></p>
 
 ---
 
@@ -85,16 +85,16 @@ clone/  (npm install && npm run dev)
 
 ## 얼마나 충실한가, 정직하게
 
-결정적 재구성으로 측정한 값이다(손으로 작성하지 않았다). 레퍼런스와 재구성을 비교했다.
+결정적 재구성으로 측정한 값이다(손으로 작성하지 않았다). 페이지 전체를 픽셀 단위로 겹쳐 레퍼런스와 재구성을 비교했다.
 
 | 사이트 | 노드 수 | 유사도 |
 |---|---|---|
 | 단순한 정적 페이지 | 14 | **93%** |
-| **vercel.com** | 425 | **95.7%** |
-| linear.app | 1024 | 83.6% |
-| tailwindcss.com | 1126 | 80.4% |
+| **vercel.com** | 425 | **95.9%** |
+| linear.app | 1023 | 82.8% |
+| tailwindcss.com | 1126 | 약 80% |
 
-**깔끔하고 대체로 정적인 사이트는 93~96%로 재현된다. 사실상 동일하다.** 폰트와 canvas가 많은 마케팅 홈페이지는 약 **80~84%**에서 천장에 부딪힌다. 그리고 그 간극은 아직 패치하지 못한 것이 아니라 근본적인 것이다. 웹폰트는 크로스오리진이라 CORS에 막혀 읽을 수 없고 상당수가 독점 폰트다. canvas나 WebGL 히어로는 computed 스타일로는 재현할 수 없다. 일부 미디어는 지연 로딩되거나 크로스오리진이다. UIForge는 **구조, 레이아웃, 타이포그래피, 색, 간격, SVG**를 충실히 복제한다. 하지만 실행 중인 WebGL 애니메이션이나 내려받을 수 없는 폰트는 되살릴 수 없다. 위 결과는 누구나 재현할 수 있다. `node tools/uiforge-capture.mjs <url>` 다음 `node tools/uiforge-reconstruct.mjs capture.json` 다음 `node tools/uiforge-diff.mjs <url> index.html`.
+**깔끔하고 대체로 정적인 사이트는 93~96%로 재현된다. 사실상 동일하다.** 긴 마케팅 홈페이지에서는 *페이지 전체* 수치가 약 **80~84%**에 머문다. 그런데 이 수치는 정직하게 읽어야 한다. 스크롤 높이 전체를 픽셀로 겹친 값이라, **누적된 세로 밀림**이 지배한다. 절대 위치로 배치된 그래픽에서 높이가 나오는 섹션은 흐름 레이아웃으로 완벽히 재현할 수 없고, 섹션마다 몇 픽셀씩 밀린 것이 1만 픽셀짜리 페이지에서는 쌓인다. **눈에 보이는 디자인은 그 수치가 말하는 것보다 훨씬 가깝다.** 위 히어로가 linear.app이고, 내비게이션과 색과 문구, 그리고 Linear 자신의 `@font-face`를 다시 선언해 되살린 **Inter Variable** 헤드라인까지 사실상 동일하다. computed 스타일로 정말 재현할 수 없는 것은 실행 중인 **canvas나 WebGL** 히어로(Vercel의 도는 삼각형, Linear의 애니메이션)와 **지연 로딩되거나 크로스오리진인 미디어**다. 폰트도 한때 이 목록에 있었지만 이제는 아니다. 아래를 보라. 위 결과는 누구나 재현할 수 있다. `node tools/uiforge-capture.mjs <url>` 다음 `node tools/uiforge-reconstruct.mjs capture.json` 다음 `node tools/uiforge-diff.mjs <url> index.html`.
 
 ## 윤리, 사칭용 클론이 아니라 리디자인 스캐폴드
 
@@ -112,6 +112,7 @@ clone/  (npm install && npm run dev)
 node tools/uiforge-capture.mjs   <url│file> [--out capture.json] [--viewport WxH]
       # 렌더링 후 모든 요소의 정확한 computed 스타일, 기하학, 텍스트, SVG, 에셋,
       # 계층 구조와 정리된 토큰셋(팔레트, 타입, 간격, radii, 그림자, 폰트)을 추출
+      # 브라우저의 CORS 벽 너머에서 진짜 @font-face 규칙까지 서버 측에서 되찾아낸다
 
 node tools/uiforge-theme.mjs     capture.json [--out-css theme.css] [--out-json theme.json]
       # 사용 방식으로 시맨틱 역할을 추론해 Tailwind v4 @theme로 (bg/fg/muted/surface/border/accent)
@@ -143,7 +144,7 @@ node tools/uiforge-lint.mjs         <dir> [--strict]
 
 어떤 LLM에게 "Stripe 같은 사이트 만들어줘"라고 하면 기억에 의존해 근사치를 낸다. 결과물이 Stripe와 비슷한 운을 띠지만 Stripe는 아니다. UIForge는 근사하지 않는다. **실제 페이지를 렌더링해서 측정한다.** 모든 요소에 `getComputedStyle`을 적용하면 정확한 색, 그라디언트, 그림자, 보더, 폰트, 박스가 나오고, `getBoundingClientRect`이 정확한 위치와 크기를 준다. SVG는 통째로 캡처한다. `uiforge-reconstruct`가 그것을 그대로 replay하므로 베이스라인은 **구성 자체로 충실하다.** 스타일이 추측이 아니라 그 사이트가 실제로 쓴 값이기 때문이다. 그다음 `uiforge-diff`가 재구성을 원본 옆에 렌더링해서 영역별로 어디가 아직 다른지 보고하고, 루프가 그 간극을 메운다.
 
-결과는 "느낌"의 반대편에 있다. 측정 가능한 복제본이다(vercel.com에서 95.7%). 그것을 당신의 콘텐츠가 담긴 편집 가능한 React + Tailwind 프로젝트로, 그리고 디자인 시스템이 `@theme`로 추출된 채로 건넨다.
+결과는 "느낌"의 반대편에 있다. 측정 가능한 복제본이다(vercel.com에서 95.9%). 그것을 당신의 콘텐츠가 담긴 편집 가능한 React + Tailwind 프로젝트로, 그리고 디자인 시스템이 `@theme`로 추출된 채로 건넨다.
 
 ## 추출된 디자인 시스템
 
@@ -151,7 +152,7 @@ node tools/uiforge-lint.mjs         <dir> [--strict]
 
 ## 정직한 한계
 
-- **웹폰트.** 크로스오리진 폰트 CSS는 CORS에 막혀 읽을 수 없고, 많은 폰트가 독점이라 텍스트가 대체 폰트로 떨어질 수 있다. 레퍼런스의 스타일시트를 다시 주입하거나 폰트를 라이선스해야 한다.
+- **웹폰트** *(대체로 해결됨)*. 브라우저는 크로스오리진 `@font-face` 규칙을 읽지 못한다(`cssRules`에 CORS가 걸린다). 그래서 이제 캡처가 레퍼런스의 스타일시트를 **서버 측에서 가져와서**(서버 요청에는 CORS가 적용되지 않는다) `@font-face` 규칙을 뽑아내고 절대 URL로 다시 선언한다. 폰트 파일 자체는 거의 항상 공개되어 있어(`Access-Control-Allow-Origin: *`) 재구성에 그대로 로드되고, 텍스트가 **진짜 폰트**로 렌더링된다. 남는 것은 이렇다. CORS를 허용하지 않고 제공되는 폰트나 인증 뒤에 있는 폰트는 여전히 대체 폰트로 떨어진다.
 - **canvas / WebGL / 비디오.** computed 스타일로는 재현할 수 없다. 그 영역을 스크린샷으로 대체하는 방식은 향후 과제다.
 - **한 장의 스냅샷.** JavaScript로 구동되는 상태, hover, 인증 뒤의 콘텐츠는 캡처되지 않는다. 반응형을 위해서는 모바일 캡처도 필요하다.
 - **"깔끔함"은 단계적이다.** 내보낸 결과물의 스타일은 캡처에서 온 인라인이다(충실하고 편집 가능하며 테마가 추출되어 있다). 그것을 관용적인 Tailwind 유틸리티와 컴포넌트로 끌어올리는 일은 `/clone`의 에이전트 단계이며, 아직 완전히 자동은 아니다.

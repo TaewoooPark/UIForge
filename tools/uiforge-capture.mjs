@@ -101,7 +101,8 @@ function CAPTURE() {
   }
   // the reference's own stylesheet links (they serve its webfonts) — re-injected by the
   // reconstruction so text renders in the real face; the replayed inline styles win.
-  const sheets = [...document.querySelectorAll('link[rel="stylesheet"]')].map(l => l.href).filter(Boolean).slice(0, 24)
+  const sheets = [...new Set([...document.querySelectorAll('link[rel="stylesheet"]')].map(l => l.href)
+    .concat([...document.styleSheets].map(s => s.href)).filter(Boolean))].slice(0, 60)
   const fontFaces = []
   try { for (const ss of document.styleSheets) { try { for (const rule of ss.cssRules) if (rule.constructor.name === 'CSSFontFaceRule') fontFaces.push(rule.cssText) } catch {} } } catch {}
   return { viewport: V, url: location.href, title: document.title, sheets, fontFaces: fontFaces.slice(0, 60), nodes }
@@ -132,6 +133,36 @@ function tokenize(nodes) {
   }
 }
 
+/* --------------- server-side @font-face recovery (no CORS) --------------- */
+// The browser can't read cross-origin cssRules, so the in-page @font-face scan comes
+// back empty. But Node fetching the same stylesheet URLs isn't subject to CORS — and
+// the font files themselves are public (served with Access-Control-Allow-Origin: *),
+// so once the rule is declared they load cross-origin from a file:// reconstruction.
+// This is what recovers the reference's REAL typeface instead of a system fallback.
+async function recoverFontFaces(sheetHrefs, already = []) {
+  const faces = [], seen = new Set()
+  const keyOf = b => {
+    const g = re => (b.match(re) || [])[1]?.trim().toLowerCase() || ''
+    return `${g(/font-family:\s*([^;}]+)/i)}|${g(/font-weight:\s*([^;}]+)/i)}|${g(/font-style:\s*([^;}]+)/i)}`
+  }
+  const push = b => { const k = keyOf(b); if (seen.has(k)) return; seen.add(k); faces.push(b) }
+  for (const b of already) push(String(b).replace(/\s+/g, ' ').trim())
+  await Promise.all((sheetHrefs || []).map(async href => {
+    try {
+      const res = await fetch(href, { redirect: 'follow' }); if (!res.ok) return
+      const css = await res.text()
+      for (let block of (css.match(/@font-face\s*\{[^}]*\}/gi) || [])) {
+        block = block.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (_m, _q, u) => {
+          if (/^data:/.test(u)) return `url(${u})`
+          try { return `url("${new URL(u, href).href}")` } catch { return `url("${u}")` }
+        }).replace(/\s+/g, ' ').trim()
+        push(block)
+      }
+    } catch {}
+  }))
+  return faces.slice(0, 40)
+}
+
 /* ------------------------------- harness ------------------------------- */
 async function capture(target, viewport) {
   const chromium = await loadChromium()
@@ -145,8 +176,11 @@ async function capture(target, viewport) {
     await page.waitForTimeout(700)
     await page.evaluate(() => { for (const el of document.querySelectorAll('body *')) { const cs = getComputedStyle(el); if ((cs.position === 'fixed' || cs.position === 'sticky') && el.getBoundingClientRect().height > 140) el.remove() } document.documentElement.style.overflow = 'auto' }).catch(() => {})
     await page.waitForTimeout(300)
-    return await page.evaluate(`(${CAPTURE.toString()})()`)
+    var snap = await page.evaluate(`(${CAPTURE.toString()})()`)
   } finally { await browser.close() }
+  // server-side: recover the @font-face rules the browser couldn't read past CORS
+  snap.fontFaces = await recoverFontFaces(snap.sheets, snap.fontFaces || [])
+  return snap
 }
 
 /* --------------------------------- CLI --------------------------------- */
