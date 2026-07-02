@@ -94,7 +94,7 @@ function render(n, depth) {
   let inner = ''
   const children = kids.get(n.i) || []
   if (n.tag === 'svg') inner = '' // skip raw svg for the baseline (placeholder box via styles)
-  else if (children.length) inner = children.map(c => render(c, depth + 1)).join('')
+  else if (children.length) inner = children.map(c => esc(c.pre || '') + render(c, depth + 1)).join('') + esc(n.post || '')
   else if (n.text) inner = esc(n.text)
   inner = pseudo(n.before) + inner + pseudo(n.after)
   return open + inner + `</${tag}>`

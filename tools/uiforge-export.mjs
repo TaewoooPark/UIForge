@@ -57,7 +57,8 @@ function toJSX(n, d) {
   if (VOID.has(tag)) return a + ' />'
   a += '>'
   const children = kids.get(n.i) || []
-  const inner = children.length ? '\n' + children.map(c => toJSX(c, d + 1)).join('\n') + '\n' : (n.text ? jsxText(n.text) : '')
+  const frag = t => t ? (/^ /.test(t) ? '{" "}' : '') + jsxText(t.trim()) + (/ $/.test(t) ? '{" "}' : '') : ''
+  const inner = children.length ? '\n' + children.map(c => frag(c.pre) + toJSX(c, d + 1)).join('\n') + frag(n.post) + '\n' : (n.text ? jsxText(n.text) : '')
   return a + inner + `</${tag}>`
 }
 const roots = kids.get(-1) || []

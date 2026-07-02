@@ -90,7 +90,18 @@ function CAPTURE() {
       role: el.getAttribute('role') || undefined,
       style,
     }
-    if (txt) node.text = txt.slice(0, 400)
+    // Mixed inline content — "AI <a>research</a> and <a>products</a> that put safety…" —
+    // has text INTERLEAVED with child elements. Capture that ordering so it survives:
+    //   pre  = the text right before this element inside its parent (incl. its whitespace)
+    //   text = the element's own text, but only when it has no element children (a leaf)
+    //   post = the trailing text after this element's LAST child
+    // Downstream, a parent renders  child.pre + child + … + parent.post , in order.
+    const hasEls = el.children.length > 0
+    if (txt && !hasEls) node.text = txt.slice(0, 400)
+    { let p = '', s = el.previousSibling; while (s && s.nodeType === 3) { p = s.textContent + p; s = s.previousSibling }
+      p = p.replace(/\s+/g, ' '); if (p && p !== '' && /\S|^ $/.test(p)) node.pre = p.slice(0, 400) }
+    if (hasEls) { let q = '', c = el.lastChild; while (c && c.nodeType === 3) { q = c.textContent + q; c = c.previousSibling }
+      q = q.replace(/\s+/g, ' '); if (q && /\S|^ $/.test(q)) node.post = q.slice(0, 400) }
     if (tag === 'a') node.href = el.getAttribute('href') || undefined
     if (tag === 'img') { node.src = el.currentSrc || el.getAttribute('src') || undefined; node.alt = el.getAttribute('alt') || undefined }
     if (tag === 'svg') { try { node.svgHTML = el.outerHTML.slice(0, 40000) } catch { node.svg = true } }
