@@ -88,6 +88,14 @@ function CAPTURE() {
     if (tag === 'img') { node.src = el.currentSrc || el.getAttribute('src') || undefined; node.alt = el.getAttribute('alt') || undefined }
     if (tag === 'svg') { try { node.svgHTML = el.outerHTML.slice(0, 40000) } catch { node.svg = true } }
     if (/^h[1-6]$/.test(tag)) node.level = +tag[1]
+    for (const [slot, pe] of [['before', '::before'], ['after', '::after']]) {   // decorative pseudo-elements
+      const pcs = getComputedStyle(el, pe), content = pcs.content
+      if (!content || content === 'none' || content === 'normal') continue
+      const ps = {}
+      for (const [k, prop] of Object.entries(PROPS)) { const v = pcs[prop]; if (v != null && v !== '' && v !== DEFAULTS[k]) ps[k] = v }
+      ps.w = pcs.width; ps.h = pcs.height
+      node[slot] = { content: content.replace(/^["']|["']$/g, '').slice(0, 120), style: ps }
+    }
     nodes.push(node)
     if (nodes.length >= 2500) break
   }

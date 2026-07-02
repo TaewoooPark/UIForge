@@ -64,6 +64,16 @@ function styleOf(n) {
   }
   return decl.join(';')
 }
+function pseudoStyle(ps) {
+  const decl = []
+  for (const [k, v] of Object.entries(ps)) { const prop = CSS[k]; if (prop && v) decl.push(`${prop}:${v}`) }
+  if (ps.w && ps.w !== 'auto') decl.push(`width:${ps.w}`)
+  if (ps.h && ps.h !== 'auto') decl.push(`height:${ps.h}`)
+  decl.push('display:inline-block', 'box-sizing:border-box')
+  return decl.join(';')
+}
+const pseudo = p => (p && p.content !== 'none') ? `<span style="${attr(pseudoStyle(p.style || {}))}">${esc(p.content || '')}</span>` : ''
+
 function render(n, depth) {
   if (depth > 40) return ''
   if (n.svgHTML) return `<div style="${attr(styleOf(n))}">${n.svgHTML}</div>`  // replay the captured SVG whole
@@ -79,6 +89,7 @@ function render(n, depth) {
   if (n.tag === 'svg') inner = '' // skip raw svg for the baseline (placeholder box via styles)
   else if (children.length) inner = children.map(c => render(c, depth + 1)).join('')
   else if (n.text) inner = esc(n.text)
+  inner = pseudo(n.before) + inner + pseudo(n.after)
   return open + inner + `</${tag}>`
 }
 const roots = kids.get(-1) || []
