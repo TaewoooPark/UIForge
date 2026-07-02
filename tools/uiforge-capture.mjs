@@ -203,6 +203,15 @@ async function capture(target, viewport) {
     await page.emulateMedia({ reducedMotion: 'reduce' }).catch(() => {})
     await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => page.goto(url, { timeout: 30000 }).catch(() => {}))
     await page.waitForTimeout(700)
+    // Scroll the whole page so IntersectionObserver reveals fire and lazy media loads —
+    // otherwise below-fold sections are captured in their initial hidden state (opacity:0,
+    // translated) and reconstruct blank. reduced-motion makes the reveals settle instantly.
+    await page.evaluate(async () => {
+      const step = Math.max(200, window.innerHeight * 0.8)
+      for (let y = 0; y < document.body.scrollHeight; y += step) { window.scrollTo(0, y); await new Promise(r => setTimeout(r, 90)) }
+      window.scrollTo(0, 0)
+    }).catch(() => {})
+    await page.waitForTimeout(400)
     await page.evaluate(() => { for (const el of document.querySelectorAll('body *')) { const cs = getComputedStyle(el); if ((cs.position === 'fixed' || cs.position === 'sticky') && el.getBoundingClientRect().height > 140) el.remove() } document.documentElement.style.overflow = 'auto' }).catch(() => {})
     await page.waitForTimeout(300)
     var snap = await page.evaluate(`(${CAPTURE.toString()})()`)
