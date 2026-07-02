@@ -197,10 +197,19 @@ Variable + Berkeley Mono) — the real design system, as a Tailwind v4 `@theme` 
   absolute URLs. The font files themselves are almost always public (`Access-Control-Allow-Origin: *`),
   so they load into the reconstruction and text renders in the **real face**. The residual:
   a font served *without* permissive CORS, or one behind auth, still falls back.
-- **Canvas / WebGL / video**: not reproducible from computed styles. A screenshot
-  fallback for those regions is future work.
-- **One snapshot**: JS-driven state, hover, and content behind auth aren't captured;
-  responsive needs a mobile capture too.
+- **Motion** *(CSS animations recovered; interaction is not, yet)*: capture reads each
+  element's `animation-*` and recovers the referenced `@keyframes` server-side (same trick
+  as the fonts), so **CSS-defined motion replays** — a spinner, an entrance fade/slide.
+  What's *not* yet captured: `:hover`/`:focus` state changes, JS-driven animation (Framer
+  Motion, GSAP, scroll-linked), and click-driven states (menus, tabs, modals). The
+  extraction path for those is proven (the hover/keyframe rules parse straight out of the
+  same stylesheets) — replaying them needs a class+stylesheet layer, not the current inline
+  styles. Tracked as the next phase.
+- **Canvas / WebGL / video**: not reproducible from computed styles — the pixels are drawn
+  imperatively, with no DOM to read. The viable path is to *record* the canvas
+  (`captureStream()` → a looping `<video>`), not to reconstruct it.
+- **One snapshot**: content behind auth and responsive breakpoints need extra captures (a
+  mobile viewport is one flag).
 - **"Clean" is staged**: the export's styling is inline from the capture (faithful,
   editable, theme extracted); lifting it to idiomatic Tailwind utilities and components
   is the `/clone` agent step, not yet fully automatic.

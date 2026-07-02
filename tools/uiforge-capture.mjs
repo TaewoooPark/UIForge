@@ -49,6 +49,8 @@ function CAPTURE() {
     bct: 'borderTopColor', bcr: 'borderRightColor', bcb: 'borderBottomColor', bcl: 'borderLeftColor',
     rtl: 'borderTopLeftRadius', rtr: 'borderTopRightRadius', rbr: 'borderBottomRightRadius', rbl: 'borderBottomLeftRadius',
     sh: 'boxShadow', op: 'opacity', flt: 'filter', bdf: 'backdropFilter', tf: 'transform', tr: 'transition', mbm: 'mixBlendMode',
+    an: 'animationName', ad: 'animationDuration', atf: 'animationTimingFunction', adl: 'animationDelay',
+    aic: 'animationIterationCount', adr: 'animationDirection', afm: 'animationFillMode',
   }
   const DEFAULTS = { // omit these to keep the file lean
     dsp: 'block', pos: 'static', top: 'auto', rgt: 'auto', bot: 'auto', lft: 'auto', z: 'auto', ov: 'visible',
@@ -57,6 +59,7 @@ function CAPTURE() {
     fst: 'normal', ls: 'normal', ta: 'start', tt: 'none', td: 'none', ws: 'normal',
     bi: 'none', bsz: 'auto', bp: '0% 0%', br: 'repeat', bwt: '0px', bwr: '0px', bwb: '0px', bwl: '0px', bst: 'none',
     rtl: '0px', rtr: '0px', rbr: '0px', rbl: '0px', sh: 'none', op: '1', flt: 'none', bdf: 'none', tf: 'none', tr: 'all 0s ease 0s', mbm: 'normal',
+    an: 'none', ad: '0s', atf: 'ease', adl: '0s', aic: '1', adr: 'normal', afm: 'none',
   }
   const directText = el => { let s = ''; for (const c of el.childNodes) if (c.nodeType === 3) s += c.textContent; return s.trim() }
   const all = [...document.querySelectorAll('body *')]
@@ -158,8 +161,10 @@ function tokenize(nodes) {
 // the font files themselves are public (served with Access-Control-Allow-Origin: *),
 // so once the rule is declared they load cross-origin from a file:// reconstruction.
 // This is what recovers the reference's REAL typeface instead of a system fallback.
-async function recoverFontFaces(sheetHrefs, already = []) {
-  const faces = [], seen = new Set()
+// Also recovers the @keyframes rules for the animations actually in use — same server-side
+// fetch, so CSS-defined MOTION (spinners, slide/fade-ins, the nav-arrow) comes across too.
+async function recoverCss(sheetHrefs, already = [], usedAnim = new Set()) {
+  const faces = [], seen = new Set(), kf = new Map()
   const keyOf = b => {
     const g = re => (b.match(re) || [])[1]?.trim().toLowerCase() || ''
     return `${g(/font-family:\s*([^;}]+)/i)}|${g(/font-weight:\s*([^;}]+)/i)}|${g(/font-style:\s*([^;}]+)/i)}`
@@ -177,9 +182,14 @@ async function recoverFontFaces(sheetHrefs, already = []) {
         }).replace(/\s+/g, ' ').trim()
         push(block)
       }
+      // @keyframes <name> { ... } — nested braces, so match one level of them
+      for (const block of (css.match(/@(?:-webkit-)?keyframes\s+[\w-]+\s*\{(?:[^{}]|\{[^{}]*\})*\}/gi) || [])) {
+        const name = (block.match(/keyframes\s+([\w-]+)/i) || [])[1]
+        if (name && usedAnim.has(name) && !kf.has(name)) kf.set(name, block.replace(/\s+/g, ' ').trim())
+      }
     } catch {}
   }))
-  return faces.slice(0, 40)
+  return { fontFaces: faces.slice(0, 40), keyframes: [...kf.values()].slice(0, 40) }
 }
 
 /* ------------------------------- harness ------------------------------- */
@@ -197,8 +207,12 @@ async function capture(target, viewport) {
     await page.waitForTimeout(300)
     var snap = await page.evaluate(`(${CAPTURE.toString()})()`)
   } finally { await browser.close() }
-  // server-side: recover the @font-face rules the browser couldn't read past CORS
-  snap.fontFaces = await recoverFontFaces(snap.sheets, snap.fontFaces || [])
+  // server-side: recover the @font-face + used @keyframes rules the browser can't read past CORS
+  const usedAnim = new Set()
+  for (const n of snap.nodes) { const a = (n.style || {}).an; if (a && a !== 'none') for (const nm of a.split(',')) usedAnim.add(nm.trim()) }
+  const rec = await recoverCss(snap.sheets, snap.fontFaces || [], usedAnim)
+  snap.fontFaces = rec.fontFaces
+  snap.keyframes = rec.keyframes
   return snap
 }
 
@@ -225,7 +239,7 @@ if (isMain) {
 
   const snap = await capture(target, { width: vw, height: vh })
   const tokens = tokenize(snap.nodes)
-  const out = { source: target, capturedAt: null, viewport: snap.viewport, title: snap.title, sheets: snap.sheets || [], fontFaces: snap.fontFaces || [], tokens, nodes: snap.nodes }
+  const out = { source: target, capturedAt: null, viewport: snap.viewport, title: snap.title, sheets: snap.sheets || [], fontFaces: snap.fontFaces || [], keyframes: snap.keyframes || [], tokens, nodes: snap.nodes }
 
   if (argv.includes('--json')) { console.log(JSON.stringify(out, null, 2)); process.exit(0) }
   writeFileSync(outPath, JSON.stringify(out, null, 2) + '\n')

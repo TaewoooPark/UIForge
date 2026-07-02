@@ -27,6 +27,8 @@ const CSS = {
   bct: 'border-top-color', bcr: 'border-right-color', bcb: 'border-bottom-color', bcl: 'border-left-color',
   rtl: 'border-top-left-radius', rtr: 'border-top-right-radius', rbr: 'border-bottom-right-radius', rbl: 'border-bottom-left-radius',
   sh: 'box-shadow', op: 'opacity', flt: 'filter', bdf: 'backdrop-filter', tf: 'transform', tr: 'transition', mbm: 'mix-blend-mode',
+  an: 'animation-name', ad: 'animation-duration', atf: 'animation-timing-function', adl: 'animation-delay',
+  aic: 'animation-iteration-count', adr: 'animation-direction', afm: 'animation-fill-mode',
 }
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const attr = s => String(s).replace(/"/g, '&quot;')
@@ -107,7 +109,10 @@ const bodyStyle = mode === 'absolute'
 // Inject ONLY the recovered @font-face rules — not the raw stylesheets, which carry the
 // site's own resets/utilities and would fight our replayed inline styles. This alone
 // renders text in the reference's real webfont (fonts served ACAO:* load from file://).
-const faces = (cap.fontFaces || []).length ? `<style>\n${cap.fontFaces.join('\n')}\n</style>` : ''
+// @font-face renders the real webfont; @keyframes replay the reference's CSS motion
+// (spinners, slide/fade-ins) — the `animation-*` values are replayed inline per element.
+const motionCss = [...(cap.fontFaces || []), ...(cap.keyframes || [])]
+const faces = motionCss.length ? `<style>\n${motionCss.join('\n')}\n</style>` : ''
 const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(cap.title || 'clone')}</title>
 ${faces}
 <style>*{box-sizing:border-box}html,body{margin:0}img{max-width:none}
