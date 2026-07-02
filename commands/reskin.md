@@ -17,11 +17,20 @@ pinning the build to a target you chose. Extract *parameters*, not assets.
   ```
   This writes `signature.json` — `typeRamp`, `accent {hue, budgetPct}`, `gridUnit`,
   `radii`, `layout.posture`, `contrastMin` — the quantified reference.
-- **Image path** — the extractor can't render an image yet, so read the DNA by
-  vision and hand-write `signature.json` in the same shape: the type ramp (px), the
-  ONE dominant accent (hue + roughly what % of the surface it covers), the spacing
-  unit, the corner radius bucket (`none/sm/md/lg/xl/full`), and the layout posture
-  (`asymmetric` vs `centered`). One accent only.
+- **Image path** — the extractor can't see the image, so it hands you a **schema
+  skeleton** to fill by vision:
+  ```bash
+  node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-extract.mjs <image> --out signature.json
+  ```
+  Then LOOK at the image and fill the fields — the type ramp (px), the ONE dominant
+  accent (`hue` 0–360 + roughly its surface `budgetPct`), the `gridUnit`, the `radii`
+  bucket (`none/sm/md/lg/xl/full`), and `layout.posture` (`asymmetric`/`centered`) —
+  and check it:
+  ```bash
+  node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-extract.mjs --validate signature.json
+  ```
+  It's the **same schema** as the URL path (`--schema` prints it), so tokens, sourcing,
+  and the gate are identical whether the reference was a site or an image. One accent only.
 - If nothing is given, ask for a reference (image, URL, or a site whose feel they want).
 
 ## 2. Compile the signature into tokens
