@@ -1,0 +1,22 @@
+{
+  "source": "docs/examples/good.html",
+  "typeRamp": [
+    14,
+    15,
+    16,
+    22,
+    28,
+    60
+  ],
+  "typeRatio": 1.386,
+  "accent": {
+    "hue": null,
+    "budgetPct": 0
+  },
+  "gridUnit": 8,
+  "contrastMin": 4.5,
+  "layout": {
+    "posture": "asymmetric",
+    "centeredHero": false
+  }
+}

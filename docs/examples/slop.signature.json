@@ -1,0 +1,23 @@
+{
+  "source": "docs/examples/slop.html",
+  "typeRamp": [
+    13,
+    14,
+    15,
+    17,
+    19,
+    21,
+    56
+  ],
+  "typeRatio": 1.362,
+  "accent": {
+    "hue": 270,
+    "budgetPct": 56.7
+  },
+  "gridUnit": 1,
+  "contrastMin": 4.5,
+  "layout": {
+    "posture": "centered",
+    "centeredHero": true
+  }
+}

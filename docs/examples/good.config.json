@@ -1,0 +1,42 @@
+{
+  "$schema": "uiforge/config@1",
+  "version": 1,
+  "source": "docs/examples/good.html",
+  "signature": {
+    "source": "docs/examples/good.html",
+    "typeRamp": [
+      14,
+      15,
+      16,
+      22,
+      28,
+      60
+    ],
+    "typeRatio": 1.386,
+    "accent": {
+      "hue": null,
+      "budgetPct": 0
+    },
+    "gridUnit": 8,
+    "contrastMin": 4.5,
+    "layout": {
+      "posture": "asymmetric",
+      "centeredHero": false
+    }
+  },
+  "gate": {
+    "contrastMin": 4.5,
+    "accentHue": null,
+    "accentBudgetPct": 0,
+    "gridUnit": 8,
+    "typeRamp": [
+      14,
+      15,
+      16,
+      22,
+      28,
+      60
+    ],
+    "layoutPosture": "asymmetric"
+  }
+}

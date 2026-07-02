@@ -71,11 +71,14 @@ const isNeutral = c => { const { s, l } = hsl(c); return s < 0.15 || l > 0.9 || 
 /* ============================ measurement core ============================ */
 // snapshot = { viewport:{w,h}, nodes:[ {x,y,w,h, fg, bg, fontSize, fontWeight, isText, textLen} ] }
 // fg = raw text color string; bg = effective OPAQUE background string.
-function analyze(snap) {
-  const V = snap.viewport, nodes = snap.nodes || []
-  const findings = []
+const letter = pct => pct >= 97 ? 'A+' : pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F'
+const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d }
 
-  /* 1. contrast (WCAG AA) */
+// raw measurement — the same numbers whether we grade absolutely or against a reference.
+function measure(snap) {
+  const V = snap.viewport, nodes = snap.nodes || []
+
+  /* 1. contrast (WCAG AA) — always absolute; a11y never bends to a reference */
   const contrastFails = []
   for (const n of nodes) {
     if (!n.isText || !n.textLen || !n.fontSize) continue
@@ -89,14 +92,12 @@ function analyze(snap) {
   }
   contrastFails.sort((a, b) => a.ratio - b.ratio)
 
-  /* 2. accent surface-area — from a non-overlapping sample grid (true visible coverage,
-        not summed element areas, which double-count nested boxes past 100%) */
+  /* 2. accent surface-area — non-overlapping sample grid (true visible coverage) */
   const samples = (snap.samples || []).map(parseColor).filter(c => c.a > 0)
   const hueCount = new Map()
   for (const c of samples) {
     if (isNeutral(c)) continue
-    const bucket = Math.round(hsl(c).h / 30) * 30
-    hueCount.set(bucket, (hueCount.get(bucket) || 0) + 1)
+    hueCount.set(Math.round(hsl(c).h / 30) * 30, (hueCount.get(Math.round(hsl(c).h / 30) * 30) || 0) + 1)
   }
   let accentHue = null, accentN = 0
   for (const [h, n] of hueCount) if (n > accentN) { accentN = n; accentHue = h }
@@ -114,29 +115,32 @@ function analyze(snap) {
     }
   }
   const distinctGaps = new Set(gaps).size
-  const offGrid = gaps.filter(g => g % 4 !== 0).length
-  const offGridPct = gaps.length ? Math.round(100 * offGrid / gaps.length) : 0
+  const offGridPct = gaps.length ? Math.round(100 * gaps.filter(g => g % 4 !== 0).length / gaps.length) : 0
+  // infer the reference grid unit: the largest of {8,4} that most gaps snap to
+  const frac = u => gaps.length ? gaps.filter(g => g % u === 0).length / gaps.length : 0
+  const gridUnit = frac(8) >= 0.6 ? 8 : frac(4) >= 0.6 ? 4 : 1
 
-  /* 4. type-scale coherence */
+  /* 4. type-scale — distinct sizes + the dominant modular ratio */
   const sizes = [...new Set(nodes.filter(n => n.isText && n.textLen).map(n => Math.round(n.fontSize)))]
     .filter(Boolean).sort((a, b) => a - b)
-  let ratioOK = true
+  let ratioOK = true, typeRatio = null
   if (sizes.length >= 3) {
-    const ratios = []
-    for (let i = 1; i < sizes.length; i++) if (sizes[i - 1] > 0) ratios.push(sizes[i] / sizes[i - 1])
-    const big = ratios.filter(r => r > 1.03) // ignore near-duplicates
+    const big = []
+    for (let i = 1; i < sizes.length; i++) if (sizes[i - 1] > 0 && sizes[i] / sizes[i - 1] > 1.03) big.push(sizes[i] / sizes[i - 1])
     if (big.length) {
       const mean = big.reduce((a, b) => a + b, 0) / big.length
-      ratioOK = big.every(r => Math.abs(r - mean) / mean < 0.12) // one ratio, ±12%
+      typeRatio = +mean.toFixed(3)
+      ratioOK = big.every(r => Math.abs(r - mean) / mean < 0.12)
     }
   }
 
   /* 5. AI layout patterns */
   let equalCards = 0
   for (const sibs of byParent.values()) {
-    const s = sibs.filter(n => n.w > 40 && n.h > 40)
     const bands = new Map()
-    for (const n of s) { const band = Math.round(n.y / 24); if (!bands.has(band)) bands.set(band, []); bands.get(band).push(n) }
+    for (const n of sibs.filter(n => n.w > 40 && n.h > 40)) {
+      const band = Math.round(n.y / 24); if (!bands.has(band)) bands.set(band, []); bands.get(band).push(n)
+    }
     for (const row of bands.values()) {
       if (row.length < 3) continue
       const w0 = row[0].w
@@ -144,41 +148,101 @@ function analyze(snap) {
     }
   }
   let centeredHero = false
-  const hero = nodes.filter(n => n.isText && n.textLen && n.y < V.h * 0.45)
-    .sort((a, b) => b.fontSize - a.fontSize)[0]
-  if (hero && hero.fontSize >= 30) {
-    const cx = hero.x + hero.w / 2
-    if (Math.abs(cx - V.w / 2) < V.w * 0.06) centeredHero = true
-  }
+  const hero = nodes.filter(n => n.isText && n.textLen && n.y < V.h * 0.45).sort((a, b) => b.fontSize - a.fontSize)[0]
+  if (hero && hero.fontSize >= 30 && Math.abs(hero.x + hero.w / 2 - V.w / 2) < V.w * 0.06) centeredHero = true
 
-  /* ---- grade: one coherent 0–100, letter derived from it ---- */
-  let pen = 0
-  pen += Math.min(35, contrastFails.length * 7)
-  if (accentPct > 10) pen += Math.min(22, (accentPct - 10) * 1.2)
-  pen += Math.min(16, Math.max(0, distinctGaps - 8) * 1.5) + Math.min(8, offGridPct * 0.12)
-  if (sizes.length > 6) pen += Math.min(12, (sizes.length - 6) * 2)
-  if (!ratioOK) pen += 6
-  if (equalCards >= 3) pen += 6
-  if (centeredHero) pen += 4
-  const pct = Math.max(0, Math.round(100 - pen))
-  const grade = pct >= 97 ? 'A+' : pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F'
+  return { V, nodesLen: nodes.length, contrastFails, accentHue, accentPct, gaps, distinctGaps,
+    offGridPct, gridUnit, sizes, ratioOK, typeRatio, equalCards, centeredHero }
+}
 
-  if (contrastFails.length) findings.push({ id: 'contrast', sev: 'BLOCKER', n: contrastFails.length,
-    msg: `${contrastFails.length} text node(s) below WCAG AA`, detail: contrastFails.slice(0, 5) })
-  if (accentPct > 10) findings.push({ id: 'accent-overexposed', sev: 'WARN', n: accentPct,
-    msg: `accent hue ~${accentHue}° covers ${accentPct}% of the surface (signature rule: <10%)` })
-  if (distinctGaps > 8 || offGridPct > 20) findings.push({ id: 'spacing-rhythm', sev: 'WARN', n: distinctGaps,
-    msg: `${distinctGaps} distinct vertical gaps (coherent ≈ ≤8) · ${offGridPct}% off the 4px grid` })
-  if (sizes.length > 6 || !ratioOK) findings.push({ id: 'type-scale', sev: 'WARN', n: sizes.length,
-    msg: `${sizes.length} distinct font sizes${ratioOK ? '' : ', not one modular ratio'} (${sizes.join('/')})` })
-  if (equalCards >= 3) findings.push({ id: 'equal-cards', sev: 'WARN', n: equalCards,
-    msg: `${equalCards} equal-width sibling blocks in a row — the "three identical cards" tell` })
-  if (centeredHero) findings.push({ id: 'centered-hero', sev: 'WARN', n: 1,
+// package the raw metrics into the shared return shape
+const pack = (mode, pct, findings, m, extra = {}) => ({
+  mode, grade: letter(pct), pct, viewport: m.V, nodes: m.nodesLen, ...extra,
+  metrics: { contrastFails: m.contrastFails.length, accentHue: m.accentHue, accentPct: m.accentPct,
+    distinctGaps: m.distinctGaps, offGridPct: m.offGridPct, gridUnit: m.gridUnit,
+    typeSizes: m.sizes.length, typeRatio: m.typeRatio, oneRatio: m.ratioOK,
+    equalCards: m.equalCards, centeredHero: m.centeredHero }, findings })
+
+// ABSOLUTE grade — no reference; UIForge's own defaults. (Backward compatible.)
+function gradeAbsolute(m) {
+  const f = []
+  let pen = Math.min(35, m.contrastFails.length * 7)
+  if (m.accentPct > 10) pen += Math.min(22, (m.accentPct - 10) * 1.2)
+  pen += Math.min(16, Math.max(0, m.distinctGaps - 8) * 1.5) + Math.min(8, m.offGridPct * 0.12)
+  if (m.sizes.length > 6) pen += Math.min(12, (m.sizes.length - 6) * 2)
+  if (!m.ratioOK) pen += 6
+  if (m.equalCards >= 3) pen += 6
+  if (m.centeredHero) pen += 4
+  if (m.contrastFails.length) f.push({ id: 'contrast', sev: 'BLOCKER', n: m.contrastFails.length,
+    msg: `${m.contrastFails.length} text node(s) below WCAG AA`, detail: m.contrastFails.slice(0, 5) })
+  if (m.accentPct > 10) f.push({ id: 'accent-overexposed', sev: 'WARN', n: m.accentPct,
+    msg: `accent hue ~${m.accentHue}° covers ${m.accentPct}% of the surface (signature rule: <10%)` })
+  if (m.distinctGaps > 8 || m.offGridPct > 20) f.push({ id: 'spacing-rhythm', sev: 'WARN', n: m.distinctGaps,
+    msg: `${m.distinctGaps} distinct vertical gaps (coherent ≈ ≤8) · ${m.offGridPct}% off the 4px grid` })
+  if (m.sizes.length > 6 || !m.ratioOK) f.push({ id: 'type-scale', sev: 'WARN', n: m.sizes.length,
+    msg: `${m.sizes.length} distinct font sizes${m.ratioOK ? '' : ', not one modular ratio'} (${m.sizes.join('/')})` })
+  if (m.equalCards >= 3) f.push({ id: 'equal-cards', sev: 'WARN', n: m.equalCards,
+    msg: `${m.equalCards} equal-width sibling blocks in a row — the "three identical cards" tell` })
+  if (m.centeredHero) f.push({ id: 'centered-hero', sev: 'WARN', n: 1,
     msg: `largest headline is dead-centered — the default AI hero composition` })
+  return pack('absolute', Math.max(0, Math.round(100 - pen)), f, m)
+}
 
-  return { grade, pct, viewport: V, nodes: nodes.length,
-    metrics: { contrastFails: contrastFails.length, accentPct, distinctGaps, offGridPct,
-      typeSizes: sizes.length, oneRatio: ratioOK, equalCards, centeredHero }, findings }
+// REFERENCE-relative grade — deviation from a derived signature. Contrast stays absolute.
+function gradeVsSpec(m, spec) {
+  const f = []
+  let pen = Math.min(35, m.contrastFails.length * 7)   // a11y floor — never bends to the reference
+  if (m.contrastFails.length) f.push({ id: 'contrast', sev: 'BLOCKER', n: m.contrastFails.length,
+    msg: `${m.contrastFails.length} text node(s) below WCAG AA (a11y floor, independent of the reference)`,
+    detail: m.contrastFails.slice(0, 5) })
+  // accent: measured against the reference's OWN budget + hue (maximalist ref → big budget is fine)
+  if (spec.accent) {
+    const budget = spec.accent.budgetPct ?? 10
+    const over = Math.max(0, m.accentPct - (budget + 5))
+    if (over > 0) { pen += Math.min(22, over * 1.2); f.push({ id: 'accent-off-ref', sev: 'WARN', n: m.accentPct,
+      msg: `accent covers ${m.accentPct}% vs the reference's ${budget}% budget` }) }
+    if (spec.accent.hue != null && m.accentHue != null && hueDist(m.accentHue, spec.accent.hue) > 45) {
+      pen += 8; f.push({ id: 'accent-hue-off', sev: 'WARN', n: m.accentHue,
+        msg: `accent hue ~${m.accentHue}° vs the reference's ~${spec.accent.hue}°` })
+    }
+  }
+  // grid: gaps should snap to the reference's inferred unit
+  if (spec.gridUnit && spec.gridUnit > 1 && m.gaps.length) {
+    const offPct = Math.round(100 * m.gaps.filter(g => g % spec.gridUnit !== 0).length / m.gaps.length)
+    if (offPct > 20) { pen += Math.min(14, offPct * 0.14); f.push({ id: 'off-ref-grid', sev: 'WARN', n: offPct,
+      msg: `${offPct}% of gaps are off the reference's ${spec.gridUnit}px grid` }) }
+  }
+  // type ramp: target sizes should land on the reference ramp
+  if (spec.typeRamp && spec.typeRamp.length) {
+    const offRamp = m.sizes.filter(s => !spec.typeRamp.some(t => Math.abs(t - s) <= Math.max(1, t * 0.06)))
+    if (offRamp.length) { pen += Math.min(14, offRamp.length * 3); f.push({ id: 'off-ref-ramp', sev: 'WARN', n: offRamp.length,
+      msg: `${offRamp.length} font size(s) off the reference ramp — ${offRamp.join('/')} vs ${spec.typeRamp.join('/')}` }) }
+  }
+  // layout posture
+  if (spec.layout && spec.layout.posture) {
+    const posture = m.centeredHero ? 'centered' : 'asymmetric'
+    if (posture !== spec.layout.posture) { pen += 6; f.push({ id: 'posture-off', sev: 'WARN', n: 1,
+      msg: `layout reads ${posture}; the reference is ${spec.layout.posture}` }) }
+  }
+  return pack('reference', Math.max(0, Math.round(100 - pen)), f, m, { ref: spec.source || null })
+}
+
+// derive a reusable signature (the "spec") FROM a reference's measured metrics
+function deriveSignature(snap) {
+  const m = measure(snap)
+  return {
+    source: snap.source || null,
+    typeRamp: m.sizes, typeRatio: m.typeRatio,
+    accent: { hue: m.accentHue, budgetPct: m.accentPct },
+    gridUnit: m.gridUnit, contrastMin: 4.5,
+    layout: { posture: m.centeredHero ? 'centered' : 'asymmetric', centeredHero: m.centeredHero },
+  }
+}
+
+// analyze against a reference spec if given, else UIForge's absolute defaults
+function analyze(snap, spec) {
+  const m = measure(snap)
+  return spec ? gradeVsSpec(m, spec) : gradeAbsolute(m)
 }
 
 /* ===================== in-page extraction (browser) ===================== */
@@ -300,11 +364,25 @@ function selfTest() {
     `contrast=${r.metrics.contrastFails} accent=${r.metrics.accentPct}% gaps=${r.metrics.distinctGaps} ` +
     `type=${r.metrics.typeSizes}${r.metrics.oneRatio ? '' : '✗ratio'} cards=${r.metrics.equalCards} hero=${r.metrics.centeredHero}`
   console.log('\n  UIForge render audit — self-test (pure logic, no browser)\n')
-  console.log(line('GOOD', g)); console.log(line('SLOP', s)); console.log()
+  console.log(line('GOOD', g)); console.log(line('SLOP', s))
+
+  // reference-relative (the hinge): rules come from a derived signature; a11y stays absolute.
+  const gSig = deriveSignature(good), sSig = deriveSignature(slop)
+  const gSelf = analyze(good, gSig)   // good vs its own signature → stays top
+  const sSelf = analyze(slop, sSig)   // slop vs its OWN aesthetic → taste findings gone, contrast remains
+  const sVsG = analyze(slop, gSig)    // slop vs the editorial reference → far off
+  console.log(`  REF    slop·vs-own ${sSelf.grade}(${sSelf.pct}) [findings: ${sSelf.findings.map(f => f.id).join(',') || 'none'}]  ·  ` +
+    `slop·vs-editorial ${sVsG.grade}(${sVsG.pct})  ·  good·vs-own ${gSelf.grade}(${gSelf.pct})`)
+  console.log()
+  const refOK = ['A+', 'A', 'B'].includes(gSelf.grade)  // good matches itself
+    && sSelf.pct > s.pct                                 // slop scores higher against its OWN aesthetic than absolute
+    && sSelf.metrics.contrastFails >= 2                  // ...but a11y (contrast) is still flagged
+    && sSelf.findings.every(f => f.id === 'contrast')    // and ONLY contrast remains (taste bent to the reference)
+    && sVsG.pct <= s.pct + 5                             // slop vs a mismatched reference is not rewarded
   const ok = ['A+', 'A', 'B'].includes(g.grade) && ['D', 'F'].includes(s.grade)
-    && s.metrics.contrastFails >= 2 && s.metrics.equalCards === 3
-  console.log(ok ? '  \x1b[32m✓ PASS — metrics separate designed from slop\x1b[0m\n'
-    : '  \x1b[31m✗ FAIL — grades did not separate\x1b[0m\n')
+    && s.metrics.contrastFails >= 2 && s.metrics.equalCards === 3 && refOK
+  console.log(ok ? '  \x1b[32m✓ PASS — absolute separates slop; reference-relative bends taste but never a11y\x1b[0m\n'
+    : `  \x1b[31m✗ FAIL — refOK=${refOK}\x1b[0m\n`)
   process.exit(ok ? 0 : 1)
 }
 
@@ -316,25 +394,44 @@ else if (!argv.length || argv.includes('-h') || argv.includes('--help')) {
   uiforge-render-audit — grade the RENDERED page on real craft metrics.
 
   node uiforge-render-audit.mjs <url|file.html> [--json] [--viewport WxH]
+  node uiforge-render-audit.mjs <url|file.html> --spec signature.json   # grade vs a reference
+  node uiforge-render-audit.mjs <url|file.html> --signature             # emit the derived signature
   node uiforge-render-audit.mjs --self-test
 
   Measures: WCAG contrast · accent surface-area · spacing rhythm ·
   type-scale coherence · AI layout patterns. Needs Playwright for live render.
+
+  With --spec, grading becomes reference-relative: accent budget, grid unit, type
+  ramp, and layout are judged against the reference signature — NOT absolute rules.
+  Contrast (WCAG AA) stays absolute; a11y never bends to a reference.
 `)
   process.exit(0)
 } else {
   const JSON_OUT = argv.includes('--json')
-  const vi = argv.indexOf('--viewport')
-  const [vw, vh] = vi >= 0 && argv[vi + 1] ? argv[vi + 1].split('x').map(Number) : [1280, 800]
-  const vwIdx = vi >= 0 ? vi + 1 : -1
-  const target = argv.find((a, idx) => !a.startsWith('--') && idx !== vwIdx)
+  const wantSig = argv.includes('--signature') || argv.includes('--derive')
+  const valAt = name => { const i = argv.indexOf(name); return i >= 0 && argv[i + 1] ? argv[i + 1] : null }
+  const [vw, vh] = (valAt('--viewport') || '1280x800').split('x').map(Number)
+  const specPath = valAt('--spec')
+  // positional target = first non-flag that isn't a flag's value
+  const valueIdx = new Set()
+  for (const nm of ['--viewport', '--spec']) { const i = argv.indexOf(nm); if (i >= 0) valueIdx.add(i + 1) }
+  const target = argv.find((a, idx) => !a.startsWith('--') && !valueIdx.has(idx))
+
   const snap = await renderSnapshot(target, { width: vw, height: vh })
-  const rep = analyze({ viewport: { w: vw, h: vh }, nodes: snap.nodes, samples: snap.samples })
+  const full = { viewport: { w: vw, h: vh }, nodes: snap.nodes, samples: snap.samples, source: target }
+
+  if (wantSig) { console.log(JSON.stringify(deriveSignature(full), null, 2)); process.exit(0) }
+
+  let spec = null
+  if (specPath) { const raw = JSON.parse((await import('node:fs')).readFileSync(specPath, 'utf8')); spec = raw.signature || raw }
+  const rep = analyze(full, spec)
+
   if (JSON_OUT) { console.log(JSON.stringify({ target, ...rep }, null, 2)); process.exit(rep.metrics.contrastFails ? 1 : 0) }
   const R = '\x1b[31m', Y = '\x1b[33m', G = '\x1b[32m', B = '\x1b[1m', D = '\x1b[2m', X = '\x1b[0m'
   const col = rep.grade === 'F' ? R : rep.grade.startsWith('A') ? G : Y
-  console.log(`\n  ${B}UIForge render audit:${X} ${col}${B}${rep.grade}${X} ${D}(${rep.pct}/100 · ${rep.nodes} nodes @ ${vw}×${vh})${X}\n`)
-  if (!rep.findings.length) console.log(`  ${G}✓ clean on every measured craft dimension${X}\n`)
+  const vs = rep.mode === 'reference' ? ` ${D}vs ${(rep.ref || specPath || 'reference').split('/').pop()}${X}` : ''
+  console.log(`\n  ${B}UIForge render audit:${X} ${col}${B}${rep.grade}${X}${vs} ${D}(${rep.pct}/100 · ${rep.nodes} nodes @ ${vw}×${vh}${rep.mode === 'reference' ? ' · reference-relative' : ''})${X}\n`)
+  if (!rep.findings.length) console.log(`  ${G}✓ ${rep.mode === 'reference' ? 'matches the reference on every measured axis' : 'clean on every measured craft dimension'}${X}\n`)
   for (const f of rep.findings) {
     const c = f.sev === 'BLOCKER' ? R : Y
     console.log(`  ${c}${f.sev === 'BLOCKER' ? '✗' : '⚠'} ${f.id}${X} ${D}·${X} ${f.msg}`)
@@ -344,4 +441,4 @@ else if (!argv.length || argv.includes('-h') || argv.includes('--help')) {
   process.exit(rep.metrics.contrastFails ? 1 : 0)
 }
 
-export { analyze, parseColor, contrast, over }
+export { analyze, deriveSignature, measure, parseColor, contrast, over }
