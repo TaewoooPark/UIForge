@@ -1,6 +1,6 @@
 {
   "name": "uiforge",
-  "version": "3.8.0",
+  "version": "3.9.0",
   "description": "A taste compiler for UI — forge masterpiece interfaces, not AI slop. Bring a reference (or commit a direction); UIForge measures it into a signature, ranks fitting components from a catalog, and loops the build on a two-tier gate (source linter + rendered WCAG/craft audit, reference-relative) with contrast held as an absolute a11y floor. Use for building or elevating any UI, landing page, hero, dashboard, or interaction.",
   "author": {
     "name": "Taewoo Park"

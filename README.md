@@ -336,7 +336,11 @@ reference licenses a 40%-accent hero; an editorial one demands an asymmetric
 layout. **Contrast never bends** — WCAG AA is an absolute floor regardless of the
 reference. The same `analyze()` engine both derives the spec (from the reference)
 and measures the target (against it), so reference and target pass identical
-measurement and the diff *is* the grade.
+measurement and the diff *is* the grade. A **reference image** works too: the tool
+can't render an image, so `uiforge-extract <image>` emits a schema **skeleton** the
+model fills by vision, and `--validate` checks it against the **same schema** as the
+URL path (`--schema` prints the contract) — so an image-derived signature is
+interchangeable with a rendered one everywhere downstream.
 
 ### The catalog — 294 components, spec-fit sourcing
 
