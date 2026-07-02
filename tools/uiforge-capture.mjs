@@ -163,8 +163,24 @@ function tokenize(nodes) {
 // This is what recovers the reference's REAL typeface instead of a system fallback.
 // Also recovers the @keyframes rules for the animations actually in use — same server-side
 // fetch, so CSS-defined MOTION (spinners, slide/fade-ins, the nav-arrow) comes across too.
+// visual props that are safe to change on :hover/:focus (won't reflow the layout)
+const INTERACT_PROPS = /^(color|background|background-color|background-image|border|border-[\w-]*color|border-color|box-shadow|opacity|transform|scale|translate|rotate|filter|backdrop-filter|text-decoration[\w-]*|outline[\w-]*|fill|stroke|--[\w-]+)$/
 async function recoverCss(sheetHrefs, already = [], usedAnim = new Set()) {
-  const faces = [], seen = new Set(), kf = new Map()
+  const faces = [], seen = new Set(), kf = new Map(), interRules = []
+  // pull the :hover/:focus/:active rules where the pseudo is on the LAST simple selector
+  // (the styled element IS the interactive one — the common, replayable case)
+  const scanInteractions = css => {
+    for (const m of css.matchAll(/([^{}@]+?)\{([^{}]*)\}/g)) {
+      const sel = m[1].trim(), body = m[2]
+      if (!/:(hover|focus|focus-visible|active)/.test(sel)) continue
+      for (let sub of sel.split(',')) {
+        const mm = sub.trim().match(/^(.*?)\s*:(hover|focus|focus-visible|active)$/)
+        if (!mm || !mm[1] || /::/.test(mm[1])) continue
+        const decl = body.split(';').map(d => d.trim()).filter(d => { const p = d.split(':')[0]?.trim().toLowerCase(); return p && INTERACT_PROPS.test(p) }).join(';')
+        if (decl) interRules.push({ base: mm[1].trim(), pseudo: mm[2] === 'focus-visible' ? 'focus' : mm[2], decl })
+      }
+    }
+  }
   const keyOf = b => {
     const g = re => (b.match(re) || [])[1]?.trim().toLowerCase() || ''
     return `${g(/font-family:\s*([^;}]+)/i)}|${g(/font-weight:\s*([^;}]+)/i)}|${g(/font-style:\s*([^;}]+)/i)}`
@@ -187,9 +203,13 @@ async function recoverCss(sheetHrefs, already = [], usedAnim = new Set()) {
         const name = (block.match(/keyframes\s+([\w-]+)/i) || [])[1]
         if (name && usedAnim.has(name) && !kf.has(name)) kf.set(name, block.replace(/\s+/g, ' ').trim())
       }
+      scanInteractions(css)
     } catch {}
   }))
-  return { fontFaces: faces.slice(0, 40), keyframes: [...kf.values()].slice(0, 40) }
+  // de-dupe interaction rules and cap (a huge site can have hundreds)
+  const seenR = new Set(), rules = []
+  for (const r of interRules) { const k = `${r.pseudo}|${r.base}|${r.decl}`; if (seenR.has(k)) continue; seenR.add(k); rules.push(r) }
+  return { fontFaces: faces.slice(0, 40), keyframes: [...kf.values()].slice(0, 40), interRules: rules.slice(0, 600) }
 }
 
 // Record each on-screen <canvas> to a WebM via captureStream() + MediaRecorder (runs in
@@ -243,18 +263,27 @@ async function capture(target, viewport, opts = {}) {
     await page.evaluate(() => { for (const el of document.querySelectorAll('body *')) { const cs = getComputedStyle(el); if ((cs.position === 'fixed' || cs.position === 'sticky') && el.getBoundingClientRect().height > 140) el.remove() } document.documentElement.style.overflow = 'auto' }).catch(() => {})
     await page.waitForTimeout(300)
     var snap = await page.evaluate(`(${CAPTURE.toString()})()`)
+    // server-side (no CORS): recover @font-face + used @keyframes + the :hover/:focus rules
+    const usedAnim = new Set()
+    for (const n of snap.nodes) { const a = (n.style || {}).an; if (a && a !== 'none') for (const nm of a.split(',')) usedAnim.add(nm.trim()) }
+    const rec = await recoverCss(snap.sheets, snap.fontFaces || [], usedAnim)
+    snap.fontFaces = rec.fontFaces; snap.keyframes = rec.keyframes
+    // match the interaction rules to elements IN the page (querySelectorAll needs the DOM),
+    // and attach each element's hover/focus/active declarations to its node by body-index.
+    if (rec.interRules.length) {
+      const map = await page.evaluate((rules) => {
+        const all = [...document.querySelectorAll('body *')], idx = new Map(all.map((el, i) => [el, i])), out = {}
+        for (const r of rules) { let els; try { els = document.querySelectorAll(r.base) } catch { continue }
+          for (const el of els) { const i = idx.get(el); if (i == null) continue; (out[i] ||= {}); out[i][r.pseudo] = (out[i][r.pseudo] || '') + r.decl + ';' } }
+        return out
+      }, rec.interRules)
+      for (const n of snap.nodes) { const m = map[n.i]; if (!m) continue; if (m.hover) n.hover = m.hover; if (m.focus) n.focus = m.focus; if (m.active) n.active = m.active }
+    }
     // Canvas/WebGL can't be reproduced from computed styles — the pixels are drawn
     // imperatively. So we RECORD it: captureStream() → MediaRecorder → a WebM the
-    // reconstruction embeds as a looping <video>. This is the only faithful path for a
-    // spinning-triangle / shader hero. Opt-in (--record-canvas) since each clip costs ~2s.
+    // reconstruction embeds as a looping <video>. Opt-in (--record-canvas) — each clip ~2s.
     if (opts.recordCanvas) snap.canvasVideos = await recordCanvases(page, opts.canvasSecs || 2.2)
   } finally { await browser.close() }
-  // server-side: recover the @font-face + used @keyframes rules the browser can't read past CORS
-  const usedAnim = new Set()
-  for (const n of snap.nodes) { const a = (n.style || {}).an; if (a && a !== 'none') for (const nm of a.split(',')) usedAnim.add(nm.trim()) }
-  const rec = await recoverCss(snap.sheets, snap.fontFaces || [], usedAnim)
-  snap.fontFaces = rec.fontFaces
-  snap.keyframes = rec.keyframes
   return snap
 }
 

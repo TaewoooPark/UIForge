@@ -91,6 +91,7 @@ function render(n, depth) {
   const tag = /^[a-z][a-z0-9]*$/.test(n.tag) ? n.tag : 'div'
   const st = styleOf(n)
   let open = `<${tag} style="${attr(st)}"`
+  if (n.hover || n.focus || n.active) open += ` class="uif-${n.i}"`   // interaction states via the companion stylesheet
   if (n.href) open += ` href="${attr(n.href)}"`
   if (tag === 'img') open += ` src="${attr(n.src || '')}"${n.alt ? ` alt="${attr(n.alt)}"` : ''} width="${n.w}" height="${n.h}"`
   if (VOID.has(tag)) return open + '>'
@@ -114,6 +115,14 @@ const bodyStyle = mode === 'absolute'
 // @font-face renders the real webfont; @keyframes replay the reference's CSS motion
 // (spinners, slide/fade-ins) — the `animation-*` values are replayed inline per element.
 const motionCss = [...(cap.fontFaces || []), ...(cap.keyframes || [])]
+// interaction states — the inline base can't express :hover/:focus, so each interactive
+// element gets a .uif-<i> class and a companion rule. !important so it beats the inline base.
+const imp = decl => decl.split(';').map(d => d.trim()).filter(Boolean).map(d => `${d} !important`).join(';')
+for (const n of nodes) {
+  if (n.hover) motionCss.push(`.uif-${n.i}:hover{${imp(n.hover)}}`)
+  if (n.focus) motionCss.push(`.uif-${n.i}:focus-visible{${imp(n.focus)}}`)
+  if (n.active) motionCss.push(`.uif-${n.i}:active{${imp(n.active)}}`)
+}
 const faces = motionCss.length ? `<style>\n${motionCss.join('\n')}\n</style>` : ''
 const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(cap.title || 'clone')}</title>
 ${faces}
