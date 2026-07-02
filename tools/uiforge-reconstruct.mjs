@@ -60,10 +60,11 @@ function styleOf(n) {
   } else {
     // flow: pin the box size so content-less containers keep their footprint
     if (n.w) decl.push(`width:${n.w}px`)
-    // Pin min-height only on a box flow can't reproduce on its own: an empty leaf, or a box
-    // whose children are ALL out of flow (absolute/fixed, so they add 0 flow height). Going
-    // more aggressive than this — pinning boxes that already hold in-flow content — inflates
-    // them into visible empty rectangles wherever text reflows even slightly, so we don't.
+    // Pin min-height only where flow truly can't reproduce the box: an empty leaf, or a box
+    // whose children are ALL out of flow (absolute/fixed, adding 0 flow height). Pinning more
+    // than this is a trap — a section sized around canvas/WebGL art (which we can't render) is
+    // structurally identical to a collapsing one, so any rule that props up the collapse also
+    // inflates the canvas box into a visible empty rectangle. So we don't; see "Honest limits".
     const ch = kids.get(n.i) || []
     const allOut = ch.length > 0 && ch.every(c => { const p = (c.style || {}).pos; return p === 'absolute' || p === 'fixed' })
     if (n.h && ((ch.length === 0 && !n.text) || allOut)) decl.push(`min-height:${n.h}px`)
