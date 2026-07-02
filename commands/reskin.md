@@ -1,44 +1,58 @@
 ---
-description: Extract a design signature (palette, type feel, spacing rhythm, radius) from a reference image or site, and write it into tokens — "steal this vibe" as tokens, not pixels.
+description: Extract a measured design signature (type ramp, accent + its budget, grid unit, radius, layout) from a reference image or site, write it to signature.json, and drive the build to match it — "steal this vibe" as a spec, not pixels.
 argument-hint: "[path to a reference image, or a URL to screenshot]"
 ---
 
-Turn the reference in **$ARGUMENTS** into a UIForge token signature. The point is
-to escape the model's median prior by pinning the build to a concrete target —
-not to copy the layout. Extract *parameters*, not assets.
+Turn the reference in **$ARGUMENTS** into a UIForge **signature** — the concrete
+spec the gate then enforces. The point is to escape the model's median prior by
+pinning the build to a target you chose. Extract *parameters*, not assets.
 
-## 1. Get the reference in front of you
+## 1. Extract the signature
 
-- If `$ARGUMENTS` is an **image path**, read it directly.
-- If it's a **URL**, screenshot it first with the webapp-testing skill or a
-  Playwright MCP (desktop width), then read the screenshot.
-- If nothing is given, ask the user for a reference (an image, a URL, or the name
-  of a site whose feel they want).
+- **URL or `.html`** — measure it directly (Playwright renders it, the render-audit
+  engine derives the signature):
+  ```bash
+  node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-extract.mjs <url│file.html> \
+    --out signature.json --config uiforge.config.json
+  ```
+  This writes `signature.json` — `typeRamp`, `accent {hue, budgetPct}`, `gridUnit`,
+  `radii`, `layout.posture`, `contrastMin` — the quantified reference.
+- **Image path** — the extractor can't render an image yet, so read the DNA by
+  vision and hand-write `signature.json` in the same shape: the type ramp (px), the
+  ONE dominant accent (hue + roughly what % of the surface it covers), the spacing
+  unit, the corner radius bucket (`none/sm/md/lg/xl/full`), and the layout posture
+  (`asymmetric` vs `centered`). One accent only.
+- If nothing is given, ask for a reference (image, URL, or a site whose feel they want).
 
-## 2. Extract the DNA (look, then quantify)
+## 2. Compile the signature into tokens
 
-From the reference, read off and write down concrete values:
+Start from the nearest kit in `${CLAUDE_PLUGIN_ROOT}/tools/kits/` and overwrite its
+roles with the signature's values — a `tokens.css` whose accent, radius, scale, and
+rhythm match the reference. Map the type feel to a real, non-default face
+(`tools/kits/README.md` — never Inter/system-ui). Hand off to `uiforge:design-tokens`
+to finish dark mode + reduced-motion.
 
-- **Palette:** the background, the primary text, the ONE dominant accent, and a
-  surface/border step — as hex. Note whether it's light or dark, warm or cool.
-  (One accent only; if the reference is busy, pick the single load-bearing color.)
-- **Type:** serif vs grotesk vs mono; tight vs airy; the display-to-body size
-  jump; weight contrast. Map it to a real, non-default face (see
-  `tools/kits/README.md` — never Inter/system-ui).
-- **Space & shape:** the rhythm (dense vs generous), the corner radius (sharp /
-  soft / pill), and whether elevation is shadow-based or border/flat.
-- **Motion feel:** snappy/mechanical, soft/springy, or near-static.
+## 3. Source components that FIT the signature
 
-## 3. Write it into tokens
+Don't hand-author, and don't grab any tasteful component — pull the ones closest to
+the signature you committed to:
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-source.mjs "<what you need>" \
+  --spec signature.json --type ui
+```
+It ranks the catalog by semantic fit (the need) × style fit (its radii vs your
+signature's) × taste (a11y + radix provenance + variants), and prints the
+`npx shadcn add …` for the top picks. Install those, verify props.
 
-Start from the nearest kit in `tools/kits/` and overwrite its roles with the
-extracted values — producing a `tokens.css` whose palette, font, radius, and
-scale match the reference. Then hand off to the `design-tokens` skill to finish
-(dark mode, reduced-motion) and build on it.
+## 4. Verify — reference-relative
 
-## 4. Verify
-
-Run `node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-lint.mjs . --strict` — the extracted
-tokens should pass (real font, one accent, on-grid, no purple-default). Report the
-palette + face you extracted and which kit you based it on. Adaptation, not
-pixel-copying — and never lift the reference's actual assets or copy.
+Grade the build **against the reference**, not against generic rules:
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-render-audit.mjs <target> --spec signature.json
+node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-lint.mjs . --strict
+```
+The render audit should report it **matches the reference** on accent budget, grid,
+type ramp, and layout — while WCAG contrast stays an absolute floor (a11y never
+bends to the reference). Report the signature you extracted, the kit you based it
+on, and what you installed. Adaptation, not pixel-copying — never lift the
+reference's actual assets or copy.

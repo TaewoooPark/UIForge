@@ -12,14 +12,21 @@ their step.
    eye lands, and the single thing it's remembered by. Confirm it before building.
 2. **Direction** — commit to ONE point of view from the design-director's
    `directions.md` (Editorial / Precise / Brutalist / Warm / Maximalist). State it.
+   **If the brief names a reference** (a site/image to feel like), run
+   `/uiforge:reskin <ref>` (or `uiforge-extract.mjs`) first to emit `signature.json`
+   — the measured reference then drives tokens, sourcing, and the gate below, so the
+   rules come from the reference instead of generic defaults.
 3. **Tokens first** — invoke **`uiforge:design-tokens`**: emit `tokens.css`
    (color roles, one type scale, 8px spacing, one radius/shadow) + `motion.ts`,
    derived from the direction. Override the shadcn/Tailwind defaults. Nothing
    downstream uses a value that isn't a token.
-4. **Source components** — install from the registry (shadcn MCP / CLI; run
-   `/uiforge:setup` first if the project isn't wired). Bias to the restrained
-   cluster in `registry-map.md`; at most one effect-maximalist piece, only as the
-   signature. Verify props. Never hand-author component source.
+4. **Source components** — never hand-author; pull the ones that FIT. Rank the
+   catalog against the need (and the signature, if you extracted one):
+   `node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-source.mjs "<need>" --spec signature.json --type ui`
+   — it scores by semantic fit × style fit (radii vs your signature) × taste (a11y +
+   radix provenance + variants) and prints the `npx shadcn add …` for the top picks.
+   Install those (shadcn MCP / CLI; run `/uiforge:setup` first if unwired); at most
+   one effect-maximalist piece, only as the signature. Verify props.
 5. **Compose to the budget** — one signature moment; everything else quiet. Direct
    motion with **`uiforge:motion`** (one signature, reduced-motion) and copy with
    **`uiforge:content`** (outcome labels, real states, no hype). Design every
@@ -35,10 +42,12 @@ their step.
       *rendered* result, which is where contrast, accent coverage, rhythm, and
       layout tells actually live. Render the view and run
       `node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-render-audit.mjs <url|file.html> --viewport 1440x900`.
-      Fix every WCAG **contrast** failure (real a11y defects), pull any **accent**
-      under ~10% of the surface, and collapse a jittery **spacing rhythm** /
-      scattered **type scale** onto one system. Re-run until the grade is **A/A+
-      with 0 contrast fails.** (Needs a browser; if none is available, say so and skip.)
+      **If you extracted a `signature.json`, add `--spec signature.json`** — grading
+      becomes reference-relative (match the reference's accent budget, grid, type
+      ramp, and layout), while WCAG contrast stays an absolute a11y floor. Fix every
+      **contrast** failure; bring accent/rhythm/type/layout into line with the
+      signature (or, with no reference, under the generic defaults). Re-run until the
+      grade is **A/A+ with 0 contrast fails.** (Needs a browser; if none, say so and skip.)
    d. **Adversarial slop detector** — run the design-director's
       `references/slop-detector.md`: render + screenshot the view (normal **and**
       `prefers-reduced-motion`), then use an *implementation-blind* judge (a
