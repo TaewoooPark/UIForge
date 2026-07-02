@@ -230,11 +230,15 @@ function gradeVsSpec(m, spec) {
 // derive a reusable signature (the "spec") FROM a reference's measured metrics
 function deriveSignature(snap) {
   const m = measure(snap)
+  const nodes = snap.nodes || []
+  // radius vocabulary → tailwind-ish buckets, bridging to the catalog's radii field (for sourcing)
+  const bucket = px => px >= 9990 ? 'full' : px <= 0 ? 'none' : px <= 4 ? 'sm' : px <= 8 ? 'md' : px <= 16 ? 'lg' : px <= 24 ? 'xl' : '2xl'
+  const radii = [...new Set(nodes.filter(n => n.w > 24 && n.h > 16 && n.radius > 0).map(n => bucket(n.radius)))]
   return {
     source: snap.source || null,
     typeRamp: m.sizes, typeRatio: m.typeRatio,
     accent: { hue: m.accentHue, budgetPct: m.accentPct },
-    gridUnit: m.gridUnit, contrastMin: 4.5,
+    gridUnit: m.gridUnit, radii, contrastMin: 4.5,
     layout: { posture: m.centeredHero ? 'centered' : 'asymmetric', centeredHero: m.centeredHero },
   }
 }
@@ -296,6 +300,7 @@ function EXTRACT() {
       x: r.x, y: r.y, w: r.width, h: r.height,
       fg: cs.color, bg: effBg(el),
       fontSize: parseFloat(cs.fontSize) || 0, fontWeight: parseInt(cs.fontWeight) || 400,
+      radius: parseFloat(cs.borderTopLeftRadius) || 0,
       isText: txt.length > 0, textLen: txt.length,
     })
     if (nodes.length >= 2000) break

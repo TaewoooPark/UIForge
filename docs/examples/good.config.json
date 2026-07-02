@@ -18,6 +18,9 @@
       "budgetPct": 0
     },
     "gridUnit": 8,
+    "radii": [
+      "sm"
+    ],
     "contrastMin": 4.5,
     "layout": {
       "posture": "asymmetric",
