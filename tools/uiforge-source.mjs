@@ -49,11 +49,16 @@ if (!existsSync(dbPath)) { console.error(`no catalog at ${dbPath}\n  build it:  
 let spec = null
 if (specPath) { const raw = JSON.parse((await import('node:fs')).readFileSync(specPath, 'utf8')); spec = raw.signature || raw }
 
-const jaccard = (a = [], b = []) => {
-  if (!a.length || !b.length) return 0
-  const A = new Set(a), B = new Set(b)
-  let inter = 0; for (const x of A) if (B.has(x)) inter++
-  return inter / (A.size + B.size - inter)
+// radius sharpness as an ordinal, so style fit is a gradient (a sharp reference
+// partially matches sm/md and mismatches xl/full) instead of jaccard's 0/1.
+const RO = { none: 0, sm: 1, md: 2, lg: 3, xl: 4, '2xl': 5, '3xl': 6, full: 7 }
+const avgRad = arr => arr && arr.length ? arr.reduce((s, r) => s + (RO[r] ?? 3), 0) / arr.length : null
+function styleFit(spec, sig) {
+  if (!spec) return 0.5
+  if (!spec.radii || !spec.radii.length) return 0.4
+  const a = avgRad(spec.radii), b = avgRad(sig.radii || [])
+  if (a == null || b == null) return 0.35              // no radius signal on one side
+  return +(1 - Math.min(Math.abs(a - b) / 4, 1)).toFixed(2)
 }
 const tokens = s => String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
 const needTok = tokens(need)
@@ -75,7 +80,7 @@ const ranked = rows.map(r => {
   const sig = JSON.parse(r.signature || '{}')
   const a11y = sig.a11y || {}
   const semantic = semanticFit(r.name, r.tags, r.type)
-  const style = spec && spec.radii ? jaccard(spec.radii, sig.radii || []) : (spec ? 0.4 : 0.5)
+  const style = styleFit(spec, sig)
   let taste = (a11y.hasFocusVisible ? 0.25 : 0) + (a11y.hasAria ? 0.15 : 0)
     + (sig.depsRadix ? 0.25 : 0) + (sig.hasVariants ? 0.15 : 0) + (sig.motion ? 0.05 : 0)
     - (sig.usesRawColor ? 0.2 : 0)

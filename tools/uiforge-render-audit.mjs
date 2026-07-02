@@ -93,16 +93,21 @@ function measure(snap) {
   }
   contrastFails.sort((a, b) => a.ratio - b.ratio)
 
-  /* 2. accent surface-area — non-overlapping sample grid (true visible coverage) */
-  const samples = (snap.samples || []).map(parseColor).filter(c => c.a > 0)
-  const hueCount = new Map()
-  for (const c of samples) {
-    if (isNeutral(c)) continue
-    hueCount.set(Math.round(hsl(c).h / 30) * 30, (hueCount.get(Math.round(hsl(c).h / 30) * 30) || 0) + 1)
+  /* 2. accent — HUE from element colors (catches hairline accents the surface grid
+        misses, e.g. a rust kicker on paper), BUDGET = how much of the surface that
+        hue actually covers (from the non-overlapping sample grid) */
+  const hueWeight = new Map()
+  for (const n of nodes) for (const col of [n.fg, n.bg]) {
+    const c = parseColor(col); if (c.a === 0 || isNeutral(c)) continue
+    const b = Math.round(hsl(c).h / 30) * 30
+    hueWeight.set(b, (hueWeight.get(b) || 0) + Math.sqrt(Math.max(1, n.w * n.h)) * (0.5 + hsl(c).s))
   }
-  let accentHue = null, accentN = 0
-  for (const [h, n] of hueCount) if (n > accentN) { accentN = n; accentHue = h }
-  const accentPct = samples.length ? +(100 * accentN / samples.length).toFixed(1) : 0
+  let accentHue = null, bestW = 0
+  for (const [h, w] of hueWeight) if (w > bestW) { bestW = w; accentHue = h }
+  const samples = (snap.samples || []).map(parseColor).filter(c => c.a > 0)
+  let accentCov = 0
+  for (const c of samples) if (!isNeutral(c) && accentHue != null && hueDist(hsl(c).h, accentHue) <= 20) accentCov++
+  const accentPct = samples.length ? +(100 * accentCov / samples.length).toFixed(1) : 0
 
   /* 3. spacing rhythm — distinct vertical gaps between siblings, from geometry */
   const byParent = new Map()
