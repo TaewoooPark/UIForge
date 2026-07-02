@@ -335,7 +335,28 @@ async function loadChromium() {
   } catch {}
   return null
 }
-async function renderSnapshot(target, viewport) {
+// in-page: strip cookie walls / consent modals / newsletter popups a fresh load puts
+// over the content, and release scroll locks. Conservative — only fixed/sticky elements
+// that are large, high-z, or explicitly consent-named.
+function STRIP_OVERLAYS() {
+  const vw = innerWidth, vh = innerHeight, kill = []
+  for (const el of document.querySelectorAll('body *')) {
+    const cs = getComputedStyle(el)
+    if ((cs.position !== 'fixed' && cs.position !== 'sticky') || cs.display === 'none' || cs.visibility === 'hidden') continue
+    const r = el.getBoundingClientRect()
+    const wide = r.width > vw * 0.6, tall = r.height > vh * 0.25, huge = r.width > vw * 0.9 && r.height > vh * 0.6
+    const z = parseInt(cs.zIndex) || 0
+    const cls = typeof el.className === 'string' ? el.className : ''
+    const named = /cookie|consent|gdpr|onetrust|truste|banner|modal|overlay|popup|newsletter|backdrop|scrim/i.test((el.id || '') + ' ' + cls)
+    if (huge || (z >= 50 && wide && tall) || (named && (wide || tall))) kill.push(el)
+  }
+  kill.forEach(el => { try { el.remove() } catch {} })
+  document.documentElement.style.overflow = 'auto'; document.body.style.overflow = 'auto'; document.body.style.position = 'static'
+  return kill.length
+}
+
+async function renderSnapshot(target, viewport, opts = {}) {
+  const harden = opts.harden !== false   // default ON: reduced-motion + dismiss overlays + settle
   const chromium = await loadChromium()
   if (!chromium) { console.error('\n  Playwright not found. Install the deep tier:\n    npm i -D playwright && npx playwright install chromium\n  (or set NODE_PATH to a global install)\n'); process.exit(3) }
   const url = /^https?:|^file:/.test(target) ? target
@@ -343,8 +364,17 @@ async function renderSnapshot(target, viewport) {
   const browser = await chromium.launch()
   try {
     const page = await browser.newPage({ viewport })
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 }).catch(() => page.goto(url, { timeout: 20000 }))
-    await page.waitForTimeout(250)
+    if (harden) await page.emulateMedia({ reducedMotion: 'reduce' }).catch(() => {})   // land the settled frame, not mid-animation
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 25000 }).catch(() => page.goto(url, { timeout: 25000 }).catch(() => {}))
+    if (harden) {
+      try {                                                                            // click a common consent button if present
+        const btn = page.getByRole('button', { name: /^(accept all|allow all|accept|agree|i agree|got it|allow|ok)$/i }).first()
+        if (await btn.count() && await btn.isVisible()) await btn.click({ timeout: 1500 }).catch(() => {})
+      } catch {}
+      await page.evaluate(`(${STRIP_OVERLAYS.toString()})()`).catch(() => {})
+      await page.waitForTimeout(400)
+    }
+    await page.waitForTimeout(harden ? 350 : 250)
     return await page.evaluate(`(${EXTRACT.toString()})()`)
   } finally { await browser.close() }
 }
@@ -414,6 +444,8 @@ else if (!argv.length || argv.includes('-h') || argv.includes('--help')) {
 
   Measures: WCAG contrast · accent surface-area · spacing rhythm ·
   type-scale coherence · AI layout patterns. Needs Playwright for live render.
+  Live renders are hardened by default (reduced-motion · dismiss cookie/consent
+  overlays · settle); pass --no-harden to disable.
 
   With --spec, grading becomes reference-relative: accent budget, grid unit, type
   ramp, and layout are judged against the reference signature — NOT absolute rules.
@@ -431,7 +463,7 @@ else if (!argv.length || argv.includes('-h') || argv.includes('--help')) {
   for (const nm of ['--viewport', '--spec']) { const i = argv.indexOf(nm); if (i >= 0) valueIdx.add(i + 1) }
   const target = argv.find((a, idx) => !a.startsWith('--') && !valueIdx.has(idx))
 
-  const snap = await renderSnapshot(target, { width: vw, height: vh })
+  const snap = await renderSnapshot(target, { width: vw, height: vh }, { harden: !argv.includes('--no-harden') })
   const full = { viewport: { w: vw, h: vh }, nodes: snap.nodes, samples: snap.samples, source: target }
 
   if (wantSig) { console.log(JSON.stringify(deriveSignature(full), null, 2)); process.exit(0) }

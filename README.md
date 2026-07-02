@@ -160,12 +160,17 @@ reproducible (`node tools/uiforge-corpus.mjs`), not a quoted statistic:
 
 <p align="center"><img src="./docs/corpus.png" alt="Corpus separation: designed pages cluster at ~91/100, template pages at ~39/100, a +52.3 point gap; with an honest caveat that heavy production sites need snapshot hardening" width="100%"></p>
 
-And the part most tools would hide: on **heavy production sites** the above-fold
-snapshot is confounded by cookie walls, entrance animations, and load states — Linear
-and Stripe grade F not because they're slop but because the snapshot caught a
-transitional hero (Vercel, which settles fast, scored B). The metric is reliable on
-settled renders; live-site validation needs snapshot hardening. Scoped, not hidden —
-which is the opposite of a manufactured "+X% CTR."
+And the part most tools would hide: full **production homepages** score lower —
+Linear and Stripe grade F. But the honest diagnosis (read the findings, don't guess)
+is *not* snapshot noise — I shipped snapshot hardening (reduced-motion + overlay
+dismissal + settle) and it didn't move them. It's a **unit mismatch** — the metric
+grades a focused *view* / hero, not a 465-node multi-section homepage of feature-card
+grids and 10 type sizes — **plus genuine WCAG failures these sites actually ship**
+(Linear renders a 1:1 gradient-text span and 12px muted text at 3.17:1; Stripe a
+2.39:1 hero), which the a11y floor is right to flag. UIForge grades a focused view's
+craft + strict accessibility — it is not a "is this site famous" detector. A
+hypothesis I could **disprove and correct**, not a quoted stat — the opposite of
+manufactured authority.
 
 ## The load-bearing principle: slop is a build error
 
