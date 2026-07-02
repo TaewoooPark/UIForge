@@ -61,8 +61,46 @@ this is the part no skill-that-only-advises can do — it **runs a linter that
 fails the build on slop and loops until the linter passes.** Advice competes with
 the model's prior and loses. A gate does not compete. It rejects.
 
-> **In one line:** UIForge is a design *compiler* — intent in, a tempered,
-> slop-free interface out, with a build that goes red if the median leaks through.
+> **In one line:** UIForge is a design *compiler* — you bring the taste (a
+> reference or a committed direction), it compiles that into an enforceable spec,
+> sources components that fit it, and loops the build until it *is* that taste,
+> with contrast held as an absolute a11y floor.
+
+## Bring a reference: the taste compiler
+
+Generic rules ("accent < 10%, one type ratio") are what make a design tool read as
+a *junior linter* — a senior breaks those rules on purpose. So the rules don't
+come from UIForge. They come from **a reference you choose.**
+
+```
+reference / keyword
+   │  uiforge-extract      render the reference, measure it
+   ▼
+signature.json            type ramp · accent + its budget · grid unit · radii · layout
+   │  compile
+   ▼
+uiforge.config.json       the project-local ruleset the gate reads
+   │  uiforge-source       rank the 294-component catalog by fit to THIS signature
+   ▼
+install the top picks     semantic × style(radii) × taste(a11y · radix · variants)
+   │  loop
+   ▼
+render-audit --spec       grade reference-relative until it MATCHES — contrast stays absolute
+```
+
+**Taste is relative; accessibility is not.** The same `slop.html`, three reference frames:
+
+| graded against… | render-audit |
+|---|---|
+| generic defaults | **F** — accent-overexposed · jittery rhythm · 3 identical cards · centered hero · + contrast |
+| an *editorial* reference | **F** — off the reference on every axis · + contrast |
+| **its own purple/maximalist reference** | **D** — every taste tell is gone (that *is* the aesthetic now); **only the WCAG contrast failures remain** |
+
+A purple, centered, maximalist page is not "slop" when the reference *is* purple
+maximalism — those are decisions. But 5 text nodes below WCAG AA are broken no
+matter whose taste you bring. That is the line the compiler draws, and it is why it
+isn't just a loop. Reproduce: `node tools/uiforge-extract.mjs <ref> --out sig.json`
+then `node tools/uiforge-render-audit.mjs <target> --spec sig.json`.
 
 ## What generic AI-UI tools can't do
 
@@ -75,7 +113,9 @@ the model's prior and loses. A gate does not compete. It rejects.
 | The bar for "done" | Linter = 0 **and** an adversary given the pixels can't prove it's AI | "Looks fine to me" (self-graded, skews positive) |
 | Reviewing *someone else's* UI | `uiforge score <dir│PR>` → an A–F grade with the tells | — |
 | Grading the *rendered result* | `uiforge-render-audit <url>` measures real WCAG contrast, accent surface-area, spacing rhythm, layout tells — on the pixels | Self-graded from source if at all; misses contrast / coverage / rhythm entirely |
-| Runs where | Locally, in your Claude Code session; zero-dependency Node | A hosted product / a web app |
+| Where the rules come from | **A reference you choose** — `uiforge-extract` measures it into a spec; the gate grades against *that*, not generic heuristics | Fixed generic rules, or none |
+| Sourcing components | Ranked by fit to your signature over a **294-component catalog** (semantic × style × a11y/provenance) | A grab-bag, or hand-authored variants |
+| Runs where | Locally, in your Claude Code session; grep tier zero-dep, catalog on built-in `node:sqlite` | A hosted product / a web app |
 | Your design decisions | Plain text you own — kits, tokens, rules — editable and `git diff`-able | A remote model's opaque behavior |
 
 ## Proof, not vibes
@@ -223,12 +263,17 @@ UIForge/
 │   ├── motion/           # the motion layer (Motion-Primitives, one signature, reduced-motion)
 │   │   └── references/{directions, components, recipes, critique, easing-canon}.md
 │   └── content/          # microcopy: outcome labels, real states, hype blocklist
-└── tools/                # executable Node — grep tier zero-dep, render tier uses Playwright
+└── tools/                # executable Node — grep tier zero-dep, render/catalog tiers on Playwright + node:sqlite
     ├── uiforge-lint.mjs          # the Gate (source) — fails the build on slop
-    ├── uiforge-render-audit.mjs  # the deep tier (render) — WCAG contrast · accent · rhythm · layout
+    ├── uiforge-render-audit.mjs  # the deep tier (render) — WCAG contrast · accent · rhythm · layout · --spec
+    ├── uiforge-extract.mjs       # a reference → signature.json (+ uiforge.config.json)
+    ├── uiforge-source.mjs        # rank the catalog by fit to a signature (semantic × style × taste)
+    ├── uiforge-harvest.mjs       # build the catalog: fetch registries → catalog.db
+    ├── uiforge-catalog.mjs       # query the catalog — stats · search · show · near
     ├── uiforge-score.mjs         # A–F grade wrapper (a review tool)
     ├── create-uiforge.mjs        # scaffold a wired project
     ├── tokens.template.css       # the token vocabulary
+    ├── catalog/                  # the asset DB — catalog.db (294 components) + manifest + README
     └── kits/{editorial,precise,brutalist,warm,maximalist}.css
 ```
 
@@ -239,7 +284,7 @@ UIForge/
 | `/uiforge:forge <brief>` | Run the whole pipeline: thesis → direction → tokens → source → compose → **loop to linter=0** → detector → subtract |
 | `/uiforge:setup [component]` | Prepare a project's registries (shadcn + @motion-primitives) + `motion`/`lucide-react`/`cn` |
 | `/uiforge:critique` | Judge the current view **blind**: render + screenshot, run **both gate tiers** (source linter + render audit), the adversarial detector, and the forced-subtraction pass |
-| `/uiforge:reskin <image│url>` | Extract a signature (palette, type, rhythm) from a reference into tokens — *steal the vibe, not the pixels* |
+| `/uiforge:reskin <image│url>` | The taste-compiler front door: extract a **measured `signature.json`** from a reference, source components that fit it, verify reference-relative — *steal the vibe as a spec, not the pixels* |
 | `/uiforge:score <dir│PR│url>` | Grade any UI **A–F** with the tells — the source linter for a dir/PR, the **render audit** for a live URL. A standalone reviewer / PR bot |
 
 ## Under the hood
@@ -279,6 +324,31 @@ reaches design professionals — a real a11y + craft report on the rendered
 artifact, not a lint of the JSX. Runs inside `/uiforge:critique` and
 `/uiforge:score <url>`, or standalone:
 `node tools/uiforge-render-audit.mjs <url│file.html>`.
+
+### Reference-relative — `uiforge-extract` + `--spec`
+
+`uiforge-extract` renders a reference and derives its **signature** — type ramp,
+accent hue + its surface budget, grid unit, radius vocabulary, layout posture.
+Feed that back as `render-audit --spec signature.json` and grading flips from
+*absolute rules* to *deviation from the reference you chose*: a maximalist
+reference licenses a 40%-accent hero; an editorial one demands an asymmetric
+layout. **Contrast never bends** — WCAG AA is an absolute floor regardless of the
+reference. The same `analyze()` engine both derives the spec (from the reference)
+and measures the target (against it), so reference and target pass identical
+measurement and the diff *is* the grade.
+
+### The catalog — 294 components, spec-fit sourcing
+
+`uiforge-harvest` fetches shadcn-compatible registries and stores each component
+in **`catalog.db`** (SQLite via built-in `node:sqlite`, zero deps) with a *static
+signature* parsed from source — radii, variant axes, semantic color roles, spacing
+scale, a11y signals (focus-visible / aria / role), motion, radix provenance.
+`uiforge-source "<need>" --spec signature.json` then ranks those 294 components by
+**semantic fit** (need ↔ name/tags/type) × **style fit** (the component's radii vs
+your signature's) × **taste** (a11y + radix + variants − raw color), and prints the
+`npx shadcn add …` for the top picks — so you install the pieces that fit the
+signature you committed to, never a grab-bag. Re-harvestable; more registries are a
+small config change (`@motion-primitives` sits behind a 429 bot-checkpoint).
 
 ### Ground truth — kits, fonts, reskin
 
@@ -343,6 +413,14 @@ fundamentals and real content; it won't rescue a page with nothing to say.
 
 **Is it a component library?** No — it's a *director*. Components come from the
 registry; UIForge decides what gets made, sources it, and rejects slop.
+
+**Isn't it just a loop enforcing generic rules?** Only if you give it no reference.
+Point `uiforge-extract` at a site or image you want to feel like, and the rules
+become *that reference's* measured signature — its type ramp, its accent budget,
+its grid, its radii. A maximalist reference passes maximalist work; an editorial
+one fails it. You supply the taste (the reference); UIForge supplies tireless
+measurement and scale. The one thing it will not relativize is **accessibility** —
+WCAG contrast is an absolute floor no reference can license away.
 
 ## Attribution & canon
 

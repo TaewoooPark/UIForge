@@ -58,8 +58,44 @@ UIForge의 일은 **기본값을 결정으로 바꾸고, 그 결정을 강제하
 린터를 돌리고 그 린터가 통과할 때까지 반복한다.** 조언은 모델의 사전확률과 경쟁하다 진다.
 게이트는 경쟁하지 않는다. 거부한다.
 
-> **한 줄로:** UIForge는 디자인 *컴파일러*다 — 의도를 넣으면 담금질된 slop-free UI가 나오고,
-> 중앙값이 새어 나오면 빌드가 빨갛게 뜬다.
+> **한 줄로:** UIForge는 디자인 *컴파일러*다 — 당신이 취향(레퍼런스, 또는 확정한 방향)을
+> 가져오면, 그것을 강제 가능한 spec으로 컴파일하고, 거기에 맞는 컴포넌트를 조달하고, 빌드가
+> *그 취향이 될 때까지* 루프한다. 대비만은 절대적인 a11y floor로 붙든 채.
+
+## 레퍼런스를 넣어라: 취향 컴파일러
+
+generic 규칙("accent < 10%, 타입 비율 하나")은 디자인 도구를 *주니어 린터*로 보이게 하는
+바로 그것이다 — 시니어는 그런 규칙을 일부러 깬다. 그래서 규칙은 UIForge에서 나오지 않는다.
+**당신이 고른 레퍼런스**에서 나온다.
+
+```
+reference / keyword
+   │  uiforge-extract      레퍼런스를 렌더해 측정
+   ▼
+signature.json            type ramp · accent + 예산 · grid unit · radii · layout
+   │  compile
+   ▼
+uiforge.config.json       게이트가 읽는 프로젝트 로컬 룰셋
+   │  uiforge-source       294개 카탈로그를 이 시그니처 fit으로 랭킹
+   ▼
+install the top picks     semantic × style(radii) × taste(a11y · radix · variants)
+   │  loop
+   ▼
+render-audit --spec       매칭될 때까지 reference-relative 채점 — 대비는 절대
+```
+
+**취향은 상대적, 접근성은 절대적.** 같은 `slop.html`을 세 레퍼런스 프레임으로:
+
+| 채점 기준 | render-audit |
+|---|---|
+| generic 기본값 | **F** — accent 과다 · jittery 리듬 · 동일 카드 3 · 중앙 히어로 · + 대비 |
+| *에디토리얼* 레퍼런스 | **F** — 전 축에서 레퍼런스 이탈 · + 대비 |
+| **자기 purple/maximalist 레퍼런스** | **D** — 취향 tell이 전부 소멸(이제 그게 미학) · **WCAG 대비 실패만 잔존** |
+
+purple·중앙·maximalist 페이지는 레퍼런스가 *purple maximalism*일 땐 slop이 아니라 결정이다.
+하지만 WCAG AA 미달 텍스트 5건은 누구의 취향을 가져오든 깨진 것이다. 그게 컴파일러가 긋는
+선이고, 그래서 이건 그냥 루프가 아니다. 재현: `node tools/uiforge-extract.mjs <ref> --out sig.json`
+후 `node tools/uiforge-render-audit.mjs <target> --spec sig.json`.
 
 ## 일반적인 AI-UI 도구가 하지 못하는 것
 
@@ -72,7 +108,9 @@ UIForge의 일은 **기본값을 결정으로 바꾸고, 그 결정을 강제하
 | "완료"의 기준 | 린터 = 0 **그리고** 픽셀만 받은 적대자가 AI임을 증명 못 함 | "내가 보기엔 괜찮은데"(자가채점, 낙관 편향) |
 | *남의* UI 리뷰 | `uiforge score <dir│PR>` → 텔과 함께 A–F 등급 | — |
 | *렌더 결과* 채점 | `uiforge-render-audit <url>`가 실제 WCAG 대비·accent 표면적·간격 리듬·레이아웃 tell을 픽셀에서 측정 | 소스에서 자가채점(있다면); 대비/커버리지/리듬은 통째로 놓침 |
-| 실행 위치 | 로컬, 당신의 Claude Code 세션; 무의존성 Node | 호스팅 제품 / 웹앱 |
+| 규칙의 출처 | **당신이 고른 레퍼런스** — `uiforge-extract`가 그걸 spec으로 측정, 게이트는 *그것*에 대해 채점 | 고정된 generic 규칙, 혹은 없음 |
+| 컴포넌트 조달 | **294개 카탈로그**에서 시그니처 fit으로 랭킹(semantic × style × a11y/provenance) | 잡동사니, 혹은 손으로 짠 변형 |
+| 실행 위치 | 로컬, 당신의 Claude Code 세션; grep 티어 무의존성, 카탈로그는 내장 `node:sqlite` | 호스팅 제품 / 웹앱 |
 | 당신의 디자인 결정 | 당신이 소유한 평문 — 키트·토큰·규칙, 편집·`git diff` 가능 | 원격 모델의 불투명한 동작 |
 
 ## 증거, vibes가 아니라
@@ -206,12 +244,17 @@ UIForge/
 │   ├── motion/           # 모션 레이어 (Motion-Primitives, 시그니처 하나, reduced-motion)
 │   │   └── references/{directions, components, recipes, critique, easing-canon}.md
 │   └── content/          # 마이크로카피: 결과 라벨·실제 상태·hype blocklist
-└── tools/                # 실행되는 Node — grep 티어 무의존성, render 티어는 Playwright
+└── tools/                # 실행되는 Node — grep 티어 무의존성, render/catalog 티어는 Playwright + node:sqlite
     ├── uiforge-lint.mjs          # 게이트(소스) — slop에서 빌드 실패
-    ├── uiforge-render-audit.mjs  # 딥 티어(렌더) — WCAG 대비 · accent · 리듬 · 레이아웃
+    ├── uiforge-render-audit.mjs  # 딥 티어(렌더) — WCAG 대비 · accent · 리듬 · 레이아웃 · --spec
+    ├── uiforge-extract.mjs       # 레퍼런스 → signature.json (+ uiforge.config.json)
+    ├── uiforge-source.mjs        # 시그니처 fit으로 카탈로그 랭킹 (semantic × style × taste)
+    ├── uiforge-harvest.mjs       # 카탈로그 구축: 레지스트리 fetch → catalog.db
+    ├── uiforge-catalog.mjs       # 카탈로그 질의 — stats · search · show · near
     ├── uiforge-score.mjs         # A–F 등급 래퍼 (리뷰 도구)
     ├── create-uiforge.mjs        # 배선된 프로젝트 스캐폴드
     ├── tokens.template.css       # 토큰 어휘
+    ├── catalog/                  # 자산 DB — catalog.db(294 컴포넌트) + manifest + README
     └── kits/{editorial,precise,brutalist,warm,maximalist}.css
 ```
 
@@ -222,7 +265,7 @@ UIForge/
 | `/uiforge:forge <브리프>` | 전 파이프라인: 논지 → 방향 → 토큰 → 조달 → 조합 → **린터=0까지 루프** → 디텍터 → 뺄셈 |
 | `/uiforge:setup [컴포넌트]` | 레지스트리(shadcn + @motion-primitives) + `motion`/`lucide-react`/`cn` 준비 |
 | `/uiforge:critique` | 현재 뷰를 **블라인드** 판정: render+screenshot, **두 게이트 티어**(소스 린터 + 렌더 감사), 어드버서리얼 디텍터, 강제 뺄셈 |
-| `/uiforge:reskin <이미지│url>` | 레퍼런스에서 서명(팔레트·타입·리듬)을 토큰으로 추출 — *바이브를 훔치되 픽셀은 아님* |
+| `/uiforge:reskin <이미지│url>` | taste-compiler front door: 레퍼런스에서 **측정된 `signature.json`** 추출, 거기 맞는 컴포넌트 조달, reference-relative 검증 — *픽셀이 아니라 spec으로 바이브 훔치기* |
 | `/uiforge:score <dir│PR│url>` | 아무 UI를 **A–F**로, 텔과 함께 — dir/PR은 소스 린터, 라이브 URL은 **렌더 감사**. 독립 리뷰어 / PR 봇 |
 
 ## 내부 구조
@@ -254,6 +297,27 @@ score 도구와 같은 일관된 0–100 → A–F 척도. `analyze()` 코어는
 (`--self-test`가 회귀 테스트로 함께 배포). 이게 디자인 현업에 닿는 티어다 — JSX 린트가 아니라
 렌더된 산출물에 대한 실제 a11y + 크래프트 리포트. `/uiforge:critique`와 `/uiforge:score <url>`
 에서 구동, 또는 단독: `node tools/uiforge-render-audit.mjs <url│file.html>`.
+
+### 레퍼런스-상대 — `uiforge-extract` + `--spec`
+
+`uiforge-extract`는 레퍼런스를 렌더해 그 **시그니처**를 도출한다 — type ramp, accent hue +
+표면 예산, grid unit, radius 어휘, layout 자세. 이걸 `render-audit --spec signature.json`으로
+되먹이면 채점이 *절대 규칙*에서 *당신이 고른 레퍼런스로부터의 편차*로 뒤집힌다: maximalist
+레퍼런스는 40% accent 히어로를 허용하고, editorial 레퍼런스는 비대칭 레이아웃을 요구한다.
+**대비만은 절대 안 굽힌다** — WCAG AA는 레퍼런스와 무관한 절대 floor. 같은 `analyze()` 엔진이
+레퍼런스에서 spec을 도출하고 타깃을 그것에 대해 측정하므로, 레퍼런스와 타깃이 동일한 측정을
+통과하고 그 diff가 곧 성적표다.
+
+### 카탈로그 — 294 컴포넌트, spec-fit 조달
+
+`uiforge-harvest`는 shadcn 호환 레지스트리를 fetch해 각 컴포넌트를 **`catalog.db`**(내장
+`node:sqlite`, 의존성 0)에 *정적 시그니처*와 함께 저장한다 — 소스에서 파싱한 radii, variant 축,
+시맨틱 색 역할, 간격 스케일, a11y 신호(focus-visible / aria / role), motion, radix provenance.
+그러면 `uiforge-source "<need>" --spec signature.json`이 그 294개를 **semantic fit**(need ↔
+name/tags/type) × **style fit**(컴포넌트 radii vs 당신 시그니처) × **taste**(a11y + radix +
+variants − raw color)로 랭킹해 상위 픽의 `npx shadcn add …`를 출력한다 — 그래서 잡동사니가
+아니라 커밋한 시그니처에 맞는 조각을 설치한다. 재수확 가능; 레지스트리 추가는 작은 config
+변경(`@motion-primitives`는 429 봇 체크포인트 뒤).
 
 ### Ground truth — 키트·폰트·reskin
 
@@ -310,6 +374,13 @@ Motion-Primitives 엔드포인트는 봇 체크포인트 뒤라 CI 페치는 `42
 
 **컴포넌트 라이브러리인가요?** 아니요 — *디렉터*입니다. 컴포넌트는 레지스트리에서 오고,
 UIForge는 무엇을 만들지 정하고, 조달하고, slop을 거부합니다.
+
+**그냥 generic 규칙을 강제하는 루프 아닌가요?** 레퍼런스를 안 주면 그렇습니다. `uiforge-extract`를
+당신이 닮고 싶은 사이트/이미지에 겨누면, 규칙이 *그 레퍼런스의* 측정된 시그니처가 됩니다 —
+그 type ramp, accent 예산, grid, radii. maximalist 레퍼런스는 maximalist 작업을 통과시키고,
+editorial 레퍼런스는 그걸 탈락시킵니다. 당신이 취향(레퍼런스)을, UIForge가 지치지 않는 측정과
+스케일을 공급합니다. 유일하게 상대화하지 않는 건 **접근성** — WCAG 대비는 어떤 레퍼런스도
+사면해 줄 수 없는 절대 floor입니다.
 
 ## 출처 & 정전(canon)
 
