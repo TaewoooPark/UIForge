@@ -48,16 +48,22 @@ their step.
       **contrast** failure; bring accent/rhythm/type/layout into line with the
       signature (or, with no reference, under the generic defaults). Re-run until the
       grade is **A/A+ with 0 contrast fails.** (Needs a browser; if none, say so and skip.)
-   d. **Adversarial slop detector** — run the design-director's
+   d. **Attention & hierarchy** — a clean render can still lead the eye nowhere.
+      `node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-attention.mjs <url|file.html> --expect "<your intended #1>"`.
+      If it reports `hierarchy: flat` or the headline/CTA is buried (the eye lands on
+      a competing block, not your focus), widen the size/contrast/whitespace gap
+      around the focal element and re-run until there is one clear #1 and it is yours.
+   e. **Adversarial slop detector** — run the design-director's
       `references/slop-detector.md`: render + screenshot the view (normal **and**
       `prefers-reduced-motion`), then use an *implementation-blind* judge (a
       subagent given only the screenshots) to try to prove a machine made it.
       Fix every tell it cites; re-render; re-judge until **CLEAN**.
-   e. **Forced subtraction** — remove the single least-justified element, then
+   f. **Forced subtraction** — remove the single least-justified element, then
       confirm the linter still exits 0.
 
-Do not report "done" until **both gate tiers pass** (grep linter exits 0 · render
-grade A/A+ with 0 contrast fails) **and** the detector returns CLEAN.
-Then report: the thesis, the chosen direction + kit, the emitted signature
-(palette / face / type ratio / spacing / motion), what you installed and from
-where, the one signature moment, the final linter score, and what you subtracted.
+Do not report "done" until **every gate tier passes** (grep linter exits 0 · render
+grade A/A+ with 0 contrast fails · hierarchy not flat, your focus leads) **and** the
+detector returns CLEAN. Report it as a **directed critique** (see `/uiforge:critique`),
+citing the measurements — then: the thesis, the chosen direction + kit, the emitted
+signature (palette / face / type ratio / spacing / motion), what you installed and
+from where, the one signature moment, the final grades, and what you subtracted.

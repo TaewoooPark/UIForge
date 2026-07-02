@@ -19,6 +19,7 @@
 // The analyze() core is pure and browser-free.
 
 import process from 'node:process'
+import { pathToFileURL } from 'node:url'
 
 /* ============================ pure color core ============================ */
 // getComputedStyle returns rgb()/rgba(); we also accept hex for the self-test.
@@ -392,8 +393,11 @@ function selfTest() {
 }
 
 /* ============================= CLI ============================= */
-const argv = process.argv.slice(2)
-if (argv.includes('--self-test')) selfTest()
+// guard so this module can be imported (e.g. by uiforge-attention) without side effects
+const isMain = import.meta.url === pathToFileURL(process.argv[1] || '').href
+const argv = isMain ? process.argv.slice(2) : []
+if (!isMain) { /* imported as a library — no CLI */ }
+else if (argv.includes('--self-test')) selfTest()
 else if (!argv.length || argv.includes('-h') || argv.includes('--help')) {
   console.log(`
   uiforge-render-audit — grade the RENDERED page on real craft metrics.
@@ -446,4 +450,4 @@ else if (!argv.length || argv.includes('-h') || argv.includes('--help')) {
   process.exit(rep.metrics.contrastFails ? 1 : 0)
 }
 
-export { analyze, deriveSignature, measure, parseColor, contrast, over }
+export { analyze, deriveSignature, measure, renderSnapshot, parseColor, contrast, over, hsl }

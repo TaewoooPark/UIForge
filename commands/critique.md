@@ -56,9 +56,23 @@ Fix every **WCAG contrast** failure it names (real a11y defects, not taste), pul
 any single **accent** back under ~10% of the surface, collapse a jittery **spacing
 rhythm** and a scattered **type scale** onto one system, and break up
 **equal-card / centered-hero** layout tells. Re-run until the render grade is
-**A/A+ and contrast fails = 0**.
+**A/A+ and contrast fails = 0**. (If you extracted a `signature.json`, add
+`--spec signature.json` to grade reference-relative.)
 
-**Do not report "done" while either tier fails.**
+**Tier C — attention & hierarchy.** A clean render can still *lead the eye
+nowhere*. Predict the gaze order and check the focal point:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/tools/uiforge-attention.mjs <url|file.html> --expect "<your intended #1>"
+```
+
+It ranks where the eye lands 1st→6th. **If `hierarchy: flat`** (no dominant
+element) or the **headline/CTA is buried** (the eye lands on a competing block, not
+your intended focus), that's a real hierarchy defect — fix it by widening the
+size/contrast/whitespace gap between the focal element and the rest, then re-run
+until there's one clear #1 and your intended element leads.
+
+**Do not report "done" while any tier fails.**
 
 ## 4. Adversarial slop detector (the real bar)
 
@@ -76,8 +90,23 @@ Identify the **single least-justified** element, color, shadow, or animation and
 **remove it**. Re-view; confirm the linter still exits 0. If removing it hurt,
 restore it and cut the next-weakest — but something goes.
 
-## 6. Report
+## 6. Report — a directed critique, not a score
 
-Give a pass/fail verdict per axis, the grep hits and their resolution, **what you
-removed**, and — if you rendered it — attach or reference the two screenshots.
-Any fail → fix and re-run this whole critique before shipping.
+Don't hand back a number; a score reads as a linter, and a designer dismisses a
+linter. Write the critique **in the voice of a specific sensibility** (e.g. a Swiss
+typographer, Rauno/Emil-grade motion restraint, or the audience's own skepticism)
+and make it an **art director's note** — one clear point of view on what's wrong and
+what to do — with the **measurements cited as evidence**, not as the verdict:
+
+- lead with the single most important problem, stated as an opinion
+  ("the hierarchy is the issue, not the color");
+- back each claim with a number the tools produced — the **gaze order** (`the eye
+  lands on the cards at #1–3, your headline is #4`), a **contrast ratio** (`2.9:1
+  here`), the **accent budget** (`31% of the surface`), the **rhythm** (`17 distinct
+  gaps`);
+- give the fix as a move, not a nag (`kill the card borders and let the type lead`).
+
+Then the mechanics: pass/fail per axis, the grep hits + resolution, **what you
+removed**, and — if you rendered it — the screenshots. Any fail → fix and re-run the
+whole critique before shipping. The bar remains: *an adversary with the pixels can't
+prove a machine made it.*
