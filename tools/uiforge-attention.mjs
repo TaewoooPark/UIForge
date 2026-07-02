@@ -20,7 +20,7 @@ import { renderSnapshot, loadChromium, measure, contrast, parseColor, over, hsl 
 
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x))
 const hueDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d }
-const isNeutralC = c => { const { s, l } = hsl(c); return s < 0.15 || l > 0.9 || l < 0.06 }
+const isNeutralC = c => { const { s, l } = hsl(c); const sp = (Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)) / 255; return sp < 0.10 || s < 0.15 || l > 0.9 || l < 0.06 }
 
 // snapshot → { viewport, order:[{rank,sel,saliency,kind,accent}], verdict:{status,clear,headline,cta,notes} }
 function attention(snap) {

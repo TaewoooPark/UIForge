@@ -66,8 +66,14 @@ function hsl({ r, g, b }) {
   const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
   return { h, s, l }
 }
-// tinted-but-near-white/near-black neutrals (warm paper, ink) read as neutral to the eye
-const isNeutral = c => { const { s, l } = hsl(c); return s < 0.15 || l > 0.9 || l < 0.06 }
+// tinted-but-near-gray neutrals (warm paper, blue-tinted dark-theme backgrounds) read
+// as neutral to the eye. HSL saturation blows up at extreme lightness, so also treat a
+// small ABSOLUTE channel spread as neutral — a #0f1116 dark bg is not a blue accent.
+const isNeutral = c => {
+  const { s, l } = hsl(c)
+  const spread = (Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)) / 255
+  return spread < 0.10 || s < 0.15 || l > 0.9 || l < 0.06
+}
 
 /* ============================ measurement core ============================ */
 // snapshot = { viewport:{w,h}, nodes:[ {x,y,w,h, fg, bg, fontSize, fontWeight, isText, textLen} ] }
