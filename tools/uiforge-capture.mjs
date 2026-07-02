@@ -283,8 +283,41 @@ async function capture(target, viewport, opts = {}) {
     // imperatively. So we RECORD it: captureStream() → MediaRecorder → a WebM the
     // reconstruction embeds as a looping <video>. Opt-in (--record-canvas) — each clip ~2s.
     if (opts.recordCanvas) snap.canvasVideos = await recordCanvases(page, opts.canvasSecs || 2.2)
+    // Interactive disclosure (dropdowns, menus, accordions): a toggle with aria-controls
+    // opens a panel that's hidden at rest. Click each toggle, record the panel's OPEN styles,
+    // then restore. Done LAST — the snapshot is already taken, so a misbehaving click is safe.
+    await matchToggles(page, snap)
   } finally { await browser.close() }
   return snap
+}
+
+// Explore aria-controls / aria-expanded toggles: click, capture the target panel's visible
+// styles, restore. Attaches node.toggleTarget (on the toggle) + node.open (on the panel).
+async function matchToggles(page, snap) {
+  try {
+    const found = await page.evaluate(async () => {
+      const all = [...document.querySelectorAll('body *')], idx = new Map(all.map((el, i) => [el, i]))
+      const pick = t => { const c = getComputedStyle(t); return { dsp: c.display, op: c.opacity, vis: c.visibility, h: c.height, mh: c.maxHeight, tf: c.transform, pe: c.pointerEvents } }
+      const toggles = all.filter(el => el.hasAttribute('aria-controls') && (el.getAttribute('aria-expanded') !== null || el.tagName === 'BUTTON'))
+      const out = []
+      for (const el of toggles.slice(0, 24)) {
+        const target = document.getElementById(el.getAttribute('aria-controls'))
+        if (!target) continue
+        const ei = idx.get(el), ti = idx.get(target); if (ei == null || ti == null) continue
+        const closed = pick(target)
+        try { el.click(); await new Promise(r => setTimeout(r, 260)) } catch { continue }
+        const open = pick(target)
+        try { if (el.getAttribute('aria-expanded') === 'true') { el.click(); await new Promise(r => setTimeout(r, 120)) } } catch {}
+        if (JSON.stringify(closed) !== JSON.stringify(open)) out.push({ toggle: ei, target: ti, open })
+      }
+      return out
+    })
+    const byId = new Map(snap.nodes.map(n => [n.i, n]))
+    for (const t of found) {
+      const tog = byId.get(t.toggle), tgt = byId.get(t.target)
+      if (tog && tgt) { tog.toggleTarget = t.target; tgt.open = t.open }
+    }
+  } catch {}
 }
 
 /* --------------------------------- CLI --------------------------------- */

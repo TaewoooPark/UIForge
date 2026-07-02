@@ -57,6 +57,8 @@ function toJSX(n, d) {
   let a = `<${tag} style=${styleObj(n)}`
   const cls = [n.cls, (n.hover || n.focus || n.active) ? `uif-${n.i}` : ''].filter(Boolean).join(' ')
   if (cls) a += ` className=${JSON.stringify(cls)}`
+  if (n.toggleTarget != null) a += ` data-uif-tog=${JSON.stringify(String(n.toggleTarget))}`
+  if (n.open) a += ` id=${JSON.stringify('uif-t-' + n.i)}`
   if (n.href) a += ` href=${JSON.stringify(n.href)}`
   if (tag === 'img') a += ` src=${JSON.stringify(n.src || '')} alt=${JSON.stringify(n.alt || '')} width={${n.w}} height={${n.h}}`
   if (VOID.has(tag)) return a + ' />'
@@ -67,7 +69,21 @@ function toJSX(n, d) {
   return a + inner + `</${tag}>`
 }
 const roots = kids.get(-1) || []
-const app = `export default function App() {\n  return (\n    <div style={{ minHeight: "100vh", background: "#fff" }}>\n${roots.map(n => toJSX(n, 0)).join('\n')}\n    </div>\n  )\n}\n`
+// disclosure runtime for exported React: a delegated click applies each panel's captured
+// open styles (dropdowns/menus/accordions open). Only emitted when there are toggles.
+const OKEY = { dsp: 'display', op: 'opacity', vis: 'visibility', h: 'height', mh: 'maxHeight', tf: 'transform', pe: 'pointerEvents' }
+const openMap = {}
+for (const n of nodes) if (n.open) openMap[n.i] = Object.fromEntries(Object.entries(n.open).map(([k, v]) => [OKEY[k] || k, v]))
+const hasToggles = Object.keys(openMap).length > 0
+const effect = hasToggles ? `  useEffect(() => {
+    const M = ${JSON.stringify(openMap)}
+    const h = e => { const t = e.target.closest('[data-uif-tog]'); if (!t) return; e.preventDefault()
+      const id = t.getAttribute('data-uif-tog'), p = document.getElementById('uif-t-' + id); if (!p) return
+      const on = p.dataset.uifOn === '1'; p.dataset.uifOn = on ? '0' : '1'; t.setAttribute('aria-expanded', String(!on))
+      const s = M[id] || {}; for (const k in s) p.style[k] = on ? '' : s[k] }
+    document.addEventListener('click', h); return () => document.removeEventListener('click', h)
+  }, [])\n` : ''
+const app = `${hasToggles ? "import { useEffect } from 'react'\n\n" : ''}export default function App() {\n${effect}  return (\n    <div style={{ minHeight: "100vh", background: "#fff" }}>\n${roots.map(n => toJSX(n, 0)).join('\n')}\n    </div>\n  )\n}\n`
 
 const theme = themePath ? readFileSync(themePath, 'utf8') : `@import "tailwindcss";`
 // Motion + interaction, appended AFTER the theme (@import must lead the file):

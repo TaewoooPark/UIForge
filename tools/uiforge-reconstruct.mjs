@@ -92,6 +92,8 @@ function render(n, depth) {
   const st = styleOf(n)
   let open = `<${tag} style="${attr(st)}"`
   if (n.hover || n.focus || n.active) open += ` class="uif-${n.i}"`   // interaction states via the companion stylesheet
+  if (n.toggleTarget != null) open += ` data-uif-tog="${n.toggleTarget}"`   // opens the panel below on click
+  if (n.open) open += ` id="uif-t-${n.i}"`                                  // a panel that has a captured open state
   if (n.href) open += ` href="${attr(n.href)}"`
   if (tag === 'img') open += ` src="${attr(n.src || '')}"${n.alt ? ` alt="${attr(n.alt)}"` : ''} width="${n.w}" height="${n.h}"`
   if (VOID.has(tag)) return open + '>'
@@ -124,6 +126,18 @@ for (const n of nodes) {
   if (n.active) motionCss.push(`.uif-${n.i}:active{${imp(n.active)}}`)
 }
 const faces = motionCss.length ? `<style>\n${motionCss.join('\n')}\n</style>` : ''
+// disclosure runtime: a [data-uif-tog] toggle applies its panel's captured OPEN styles on
+// click (and toggles back), so dropdowns/accordions/menus actually open in the clone.
+const OKEY = { dsp: 'display', op: 'opacity', vis: 'visibility', h: 'height', mh: 'maxHeight', tf: 'transform', pe: 'pointerEvents' }
+const openMap = {}
+for (const n of nodes) if (n.open) openMap[n.i] = Object.fromEntries(Object.entries(n.open).map(([k, v]) => [OKEY[k] || k, v]))
+const toggleScript = Object.keys(openMap).length ? `<script>
+const _uifOpen=${JSON.stringify(openMap)};
+document.addEventListener('click',e=>{const t=e.target.closest('[data-uif-tog]');if(!t)return;e.preventDefault();
+const id=t.getAttribute('data-uif-tog'),p=document.getElementById('uif-t-'+id);if(!p)return;
+const on=p.dataset.uifOn==='1';p.dataset.uifOn=on?'0':'1';t.setAttribute('aria-expanded',on?'false':'true');
+const s=_uifOpen[id]||{};for(const k in s){p.style[k]=on?'':s[k]}});
+</script>` : ''
 const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(cap.title || 'clone')}</title>
 ${faces}
 <style>*{box-sizing:border-box}html,body{margin:0}img{max-width:none}
@@ -134,6 +148,7 @@ button,input,select,textarea{appearance:none;-webkit-appearance:none;background:
 a{text-decoration:none;color:inherit}ul,ol{list-style:none}fieldset{border:0;margin:0;padding:0}</style></head>
 <body style="${attr(bodyStyle)}">
 ${body}
+${toggleScript}
 </body></html>`
 writeFileSync(outPath, html)
 const B = '\x1b[1m', D = '\x1b[2m', G = '\x1b[32m', X = '\x1b[0m'
