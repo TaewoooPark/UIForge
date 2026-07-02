@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "UIForge — a taste compiler for UI: bring a reference, it compiles the spec, sources to it, and loops to slop-free.",
-    "version": "3.7.1"
+    "version": "3.8.0"
   },
   "plugins": [
     {
       "name": "uiforge",
       "source": "./",
       "description": "A taste compiler for UI. Bring a reference (or a committed direction); UIForge measures it into a signature spec, ranks fitting components from a 294-item catalog, and loops the build on a two-tier gate (source linter + rendered WCAG/craft audit, reference-relative) — WCAG contrast held as an absolute a11y floor.",
-      "version": "3.7.1",
+      "version": "3.8.0",
       "author": {
         "name": "Taewoo Park"
       },

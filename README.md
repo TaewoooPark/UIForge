@@ -363,6 +363,11 @@ one the 60px headline leads at #1. This is the tier that reads as an art directo
 not a linter — and `/uiforge:critique` reports it **as a directed critique in a
 voice, citing the numbers as evidence**, not as a score.
 
+`--overlay out.png` draws the gaze order (`#1`…`#6`) right onto the rendered page —
+an art-director's annotated punch list you can look at:
+
+<p align="center"><img src="./docs/attention-overlay.png" alt="Attention overlay — editorial: hierarchy ok, the eye lands on the headline (#1); slop: hierarchy flat, the eye lands on the three cards (#1–3), the headline is only #4" width="100%"></p>
+
 ### Ground truth — kits, fonts, reskin
 
 The fastest way past the median is to **not start from a blank page**. Five kits
