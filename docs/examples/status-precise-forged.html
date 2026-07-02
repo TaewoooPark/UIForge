@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8"><title>status — forged (precise)</title><style>
+  /* forged to the precise reference: calm, exact, ONE electric-blue accent, tight 8px
+     grid, strong contrast, left-aligned, real numbers — no gradient, no center. */
+  :root{
+    --bg:#f7f8fa;--card:#fff;--fg:#12151b;--mut:#454b57;--line:#e3e6ea;
+    --ok:#1f7a4d;--accent:#2b64f5;--s1:8px;--s2:16px;--s3:24px;--s4:32px;--s5:56px;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{margin:0;box-sizing:border-box;font-family:"Hanken Grotesk",ui-sans-serif,system-ui,sans-serif}
+  body{background:var(--bg);color:var(--fg);line-height:1.6}
+  .wrap{max-width:920px;margin:0 auto;padding:var(--s5) var(--s4)}
+  .row0{display:flex;align-items:center;gap:10px;margin-bottom:var(--s2)}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--ok)}
+  .kick{font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--ok);font-weight:700}
+  h1{font-size:40px;line-height:1.12;letter-spacing:-.02em;font-weight:700;max-width:20ch;margin-bottom:var(--s2)}
+  .lede{font-size:17px;color:var(--mut);max-width:54ch;margin-bottom:var(--s4)}
+  .list{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+  .item{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:var(--s3);padding:16px var(--s3);border-top:1px solid var(--line)}
+  .item:first-child{border-top:0}
+  .svc{font-weight:600;font-size:15px}
+  .up{font-family:var(--mono);font-size:14px;color:var(--mut)}
+  .badge{font-size:12px;font-weight:700;color:var(--ok);background:#eaf6ef;padding:4px 10px;border-radius:6px}
+  .foot{margin-top:var(--s3);font-size:13px;color:var(--mut);font-family:var(--mono)}
+  .foot b{color:var(--accent)}
+</style></head><body>
+  <main class="wrap">
+    <div class="row0"><span class="dot"></span><span class="kick">All systems operational</span></div>
+    <h1>99.98% uptime across the last 90 days.</h1>
+    <p class="lede">Incidents are posted here within 60 seconds of detection and updated every 5 minutes until resolved. Subscribe for SMS on Sev-1 only.</p>
+    <div class="list">
+      <div class="item"><span class="svc">REST API</span><span class="up">99.99% · 90d</span><span class="badge">OPERATIONAL</span></div>
+      <div class="item"><span class="svc">Dashboard</span><span class="up">99.97% · 90d</span><span class="badge">OPERATIONAL</span></div>
+      <div class="item"><span class="svc">Webhooks</span><span class="up">99.95% · 90d</span><span class="badge">OPERATIONAL</span></div>
+      <div class="item"><span class="svc">Build runners</span><span class="up">99.98% · 90d</span><span class="badge">OPERATIONAL</span></div>
+    </div>
+    <p class="foot">last checked 14s ago · <b>subscribe to updates</b></p>
+  </main>
+</body></html>

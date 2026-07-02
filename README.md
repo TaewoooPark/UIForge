@@ -105,6 +105,14 @@ matter whose taste you bring. That is the line the compiler draws, and it is why
 isn't just a loop. Reproduce: `node tools/uiforge-extract.mjs <ref> --out sig.json`
 then `node tools/uiforge-render-audit.mjs <target> --spec sig.json`.
 
+**With a reference, run for real.** Two more briefs, each with a reference the way
+a user would give one — the reference is measured into a `signature.json`, then the
+build is graded `--spec` against it. The default deviates (F); the forged version
+adopts the reference's accent · grid · type · posture and matches it (A):
+
+<p align="center"><img src="./docs/example-brutalist.png" alt="Brief: a hero for a monospace font marketplace, guidance brutalist. Reference (brutalist.html) → the LLM default scores F (45) against it → the forged version scores A (94), matching the reference." width="100%"></p>
+<p align="center"><img src="./docs/example-precise.png" alt="Brief: a status/uptime section, guidance Swiss precision. Reference (precise.html) → the LLM default scores F (53) against it → the forged version scores A (94), matching the reference." width="100%"></p>
+
 ## What generic AI-UI tools can't do
 
 | Axis | UIForge | Plain Claude / v0 / Lovable / bolt |

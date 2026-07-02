@@ -1,0 +1,21 @@
+{
+  "source": "tools/corpus/fixtures/brutalist.html",
+  "typeRamp": [
+    14,
+    15,
+    19,
+    76
+  ],
+  "typeRatio": 2.113,
+  "accent": {
+    "hue": 240,
+    "budgetPct": 1.1
+  },
+  "gridUnit": 8,
+  "radii": [],
+  "contrastMin": 4.5,
+  "layout": {
+    "posture": "asymmetric",
+    "centeredHero": false
+  }
+}
