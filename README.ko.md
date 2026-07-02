@@ -247,6 +247,7 @@ UIForge/
 └── tools/                # 실행되는 Node — grep 티어 무의존성, render/catalog 티어는 Playwright + node:sqlite
     ├── uiforge-lint.mjs          # 게이트(소스) — slop에서 빌드 실패
     ├── uiforge-render-audit.mjs  # 딥 티어(렌더) — WCAG 대비 · accent · 리듬 · 레이아웃 · --spec
+    ├── uiforge-attention.mjs     # gaze-order + 위계 — 눈이 당신의 초점에 도달하는가?
     ├── uiforge-extract.mjs       # 레퍼런스 → signature.json (+ uiforge.config.json)
     ├── uiforge-source.mjs        # 시그니처 fit으로 카탈로그 랭킹 (semantic × style × taste)
     ├── uiforge-harvest.mjs       # 카탈로그 구축: 레지스트리 fetch → catalog.db
@@ -264,7 +265,7 @@ UIForge/
 |---|---|
 | `/uiforge:forge <브리프>` | 전 파이프라인: 논지 → 방향 → 토큰 → 조달 → 조합 → **린터=0까지 루프** → 디텍터 → 뺄셈 |
 | `/uiforge:setup [컴포넌트]` | 레지스트리(shadcn + @motion-primitives) + `motion`/`lucide-react`/`cn` 준비 |
-| `/uiforge:critique` | 현재 뷰를 **블라인드** 판정: render+screenshot, **두 게이트 티어**(소스 린터 + 렌더 감사), 어드버서리얼 디텍터, 강제 뺄셈 |
+| `/uiforge:critique` | 현재 뷰를 **블라인드** 판정: render+screenshot, 게이트 티어(소스 린터 · 렌더 감사 · **attention/위계**), 어드버서리얼 디텍터, 강제 뺄셈 — 그리고 **숫자를 인용하는 보이스의 directed critique로** 보고 |
 | `/uiforge:reskin <이미지│url>` | taste-compiler front door: 레퍼런스에서 **측정된 `signature.json`** 추출, 거기 맞는 컴포넌트 조달, reference-relative 검증 — *픽셀이 아니라 spec으로 바이브 훔치기* |
 | `/uiforge:score <dir│PR│url>` | 아무 UI를 **A–F**로, 텔과 함께 — dir/PR은 소스 린터, 라이브 URL은 **렌더 감사**. 독립 리뷰어 / PR 봇 |
 
@@ -318,6 +319,16 @@ name/tags/type) × **style fit**(컴포넌트 radii vs 당신 시그니처) × *
 variants − raw color)로 랭킹해 상위 픽의 `npx shadcn add …`를 출력한다 — 그래서 잡동사니가
 아니라 커밋한 시그니처에 맞는 조각을 설치한다. 재수확 가능; 레지스트리 추가는 작은 config
 변경(`@motion-primitives`는 429 봇 체크포인트 뒤).
+
+### 시선 & 위계 — `uiforge-attention.mjs`
+
+페이지가 모든 craft 체크를 통과하고도 *시선을 아무데도 이끌지 못할* 수 있다 — 가장 흔한
+실제 비평("위계가 약하다")을 검증 가능하게 만든다. 렌더에서 **gaze order**(saliency
+프록시: 크기 · 대비 · 위치 · accent · weight)를 예측하고, **하나의** 명확한 초점이 있는지,
+눈이 **헤드라인 / CTA**에 먼저 도달하는지 검사한다. slop fixture에선 `hierarchy: flat`과
+*"눈이 카드 #1–3에 가고, 헤드라인은 #4"*; editorial에선 60px 헤드라인이 #1로 리드한다. 린터가
+아니라 아트 디렉터로 읽히는 티어 — 그리고 `/uiforge:critique`는 이걸 **관점 있는 보이스의
+directed critique로, 숫자를 근거로 인용**해 보고한다(점수가 아니라).
 
 ### Ground truth — 키트·폰트·reskin
 

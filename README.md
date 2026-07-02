@@ -266,6 +266,7 @@ UIForge/
 └── tools/                # executable Node — grep tier zero-dep, render/catalog tiers on Playwright + node:sqlite
     ├── uiforge-lint.mjs          # the Gate (source) — fails the build on slop
     ├── uiforge-render-audit.mjs  # the deep tier (render) — WCAG contrast · accent · rhythm · layout · --spec
+    ├── uiforge-attention.mjs     # gaze-order + hierarchy — does the eye reach your focus?
     ├── uiforge-extract.mjs       # a reference → signature.json (+ uiforge.config.json)
     ├── uiforge-source.mjs        # rank the catalog by fit to a signature (semantic × style × taste)
     ├── uiforge-harvest.mjs       # build the catalog: fetch registries → catalog.db
@@ -283,7 +284,7 @@ UIForge/
 |---|---|
 | `/uiforge:forge <brief>` | Run the whole pipeline: thesis → direction → tokens → source → compose → **loop to linter=0** → detector → subtract |
 | `/uiforge:setup [component]` | Prepare a project's registries (shadcn + @motion-primitives) + `motion`/`lucide-react`/`cn` |
-| `/uiforge:critique` | Judge the current view **blind**: render + screenshot, run **both gate tiers** (source linter + render audit), the adversarial detector, and the forced-subtraction pass |
+| `/uiforge:critique` | Judge the current view **blind**: render + screenshot, run the gate tiers (source linter · render audit · **attention/hierarchy**), the adversarial detector, forced subtraction — and report it **as a directed critique in a voice, citing the numbers** |
 | `/uiforge:reskin <image│url>` | The taste-compiler front door: extract a **measured `signature.json`** from a reference, source components that fit it, verify reference-relative — *steal the vibe as a spec, not the pixels* |
 | `/uiforge:score <dir│PR│url>` | Grade any UI **A–F** with the tells — the source linter for a dir/PR, the **render audit** for a live URL. A standalone reviewer / PR bot |
 
@@ -349,6 +350,18 @@ your signature's) × **taste** (a11y + radix + variants − raw color), and prin
 `npx shadcn add …` for the top picks — so you install the pieces that fit the
 signature you committed to, never a grab-bag. Re-harvestable; more registries are a
 small config change (`@motion-primitives` sits behind a 429 bot-checkpoint).
+
+### Attention & hierarchy — `uiforge-attention.mjs`
+
+A page can pass every craft check and still *lead the eye nowhere* — the most
+common real critique ("the hierarchy is weak") made testable. From the render it
+predicts a **gaze order** (a saliency proxy over size · contrast · position ·
+accent · weight), then checks: is there **one** clear focal point, and does the eye
+reach your **headline / CTA** first? On the slop fixture it reports `hierarchy: flat`
+and *"the eye lands on the cards at #1–3, your headline is #4"*; on the editorial
+one the 60px headline leads at #1. This is the tier that reads as an art director,
+not a linter — and `/uiforge:critique` reports it **as a directed critique in a
+voice, citing the numbers as evidence**, not as a score.
 
 ### Ground truth — kits, fonts, reskin
 
