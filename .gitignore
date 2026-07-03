@@ -17,3 +17,9 @@ npm-debug.log*
 # SQLite transient sidecars (catalog.db itself IS committed; these are not)
 *.db-wal
 *.db-shm
+
+# Generated tool outputs (theme/capture/segment artifacts written into the repo during a run)
+/theme.css
+/theme.json
+/capture.json
+/segment.json

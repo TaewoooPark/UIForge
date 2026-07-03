@@ -11,6 +11,7 @@
 
 import process from 'node:process'
 import { readFileSync, writeFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 
 /* ------------------------------ color helpers ------------------------------ */
 function parse(s) {
@@ -96,6 +97,8 @@ function buildTheme(cap) {
 }
 
 /* ------------------------------ CLI ------------------------------ */
+const isMain = import.meta.url === pathToFileURL(process.argv[1] || '').href
+if (isMain) {
 const argv = process.argv.slice(2)
 if (!argv.length || argv.includes('-h') || argv.includes('--help')) {
   console.log(`
@@ -122,5 +125,6 @@ console.log(`    ${C}fonts${X}   ${json.fonts.sans}${json.fonts.mono ? ` · ${js
 console.log(`    ${C}scale${X}   ${json.typeScale.join(' ')}`)
 console.log(`    ${C}palette${X} ${json.palette.length} · ${C}radii${X} ${json.radii.length} · ${C}shadow${X} ${json.shadows.length} · ${C}grad${X} ${json.gradients.length}`)
 console.log(`\n  ${G}→ theme.css + theme.json${X}\n`)
+}
 
 export { buildTheme, roles }
