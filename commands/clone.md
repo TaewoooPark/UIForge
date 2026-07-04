@@ -28,6 +28,7 @@ node $ROOT/tools/uiforge-archive.mjs <ref> --out-dir ./clone-archive --explore
 node ./clone-archive/serve.mjs      # → http://localhost:8787
 ```
 
+- **It's a browsable, editable mirror, not a blob dump.** Every response lands under `files/` at a real path mirroring its URL, with a real extension (`.html`/`.js`/`.css`/`.json`/fonts/images) — open it, read it, and **edit any text response**; the server reads files fresh per request, so changes show up on reload. `index.json` maps each request → its file. (To *develop* a clean copy — React + Tailwind with **your** content — use **Rebuild** `--react` (§B); the Archive is for **behavior**, the Rebuild for **editing**.)
 - **Verify it behaves** (don't just claim it): open the replayed URL, confirm the framework boots with no page errors, then exercise one real interaction (click a tab / nav item / "load more") and confirm the content changes without a full reload. Report what worked.
 - **Honest limit to state**: a *server*-dependent action (search hitting an API, a fetch triggered by input you didn't type) only replays if its response was recorded — widen coverage by interacting more under `--explore`. A request never made during capture has nothing to replay.
 

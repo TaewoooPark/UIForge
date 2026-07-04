@@ -33,6 +33,54 @@ if (!start) { console.error('  no url'); process.exit(1) }
 const MAX_BODY = 12 * 1024 * 1024
 const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36) }
 
+// The archive is a BROWSABLE, EDITABLE mirror — every response is written at a real path that
+// mirrors its URL, with a real extension, so you can open the folder, read the HTML/JS/CSS/JSON,
+// and edit any text response (the replay server reads files fresh per request, so edits show up).
+const extFromCt = ct => { ct = (ct || '').toLowerCase()
+  if (ct.includes('html')) return '.html'
+  if (ct.includes('javascript') || ct.includes('ecmascript')) return '.js'
+  if (ct.includes('json')) return '.json'
+  if (ct.includes('css')) return '.css'
+  if (ct.includes('image/svg')) return '.svg'
+  if (ct.includes('png')) return '.png'
+  if (ct.includes('jpeg') || ct.includes('jpg')) return '.jpg'
+  if (ct.includes('webp')) return '.webp'
+  if (ct.includes('gif')) return '.gif'
+  if (ct.includes('avif')) return '.avif'
+  if (ct.includes('icon')) return '.ico'
+  if (ct.includes('woff2')) return '.woff2'
+  if (ct.includes('woff')) return '.woff'
+  if (ct.includes('ttf')) return '.ttf'
+  if (ct.includes('otf')) return '.otf'
+  if (ct.includes('x-component')) return '.rsc.txt'   // Next.js RSC flight — readable as text
+  if (ct.includes('text/plain')) return '.txt'
+  if (ct.includes('xml')) return '.xml'
+  if (ct.includes('mp4')) return '.mp4'
+  if (ct.includes('webm')) return '.webm'
+  return '.bin' }
+const sanitize = s => s.replace(/[?#]/g, '_').replace(/[^a-zA-Z0-9._/\-]/g, '_').replace(/\.{2,}/g, '_').replace(/^\/+/, '').replace(/\/{2,}/g, '/')
+// readable, collision-safe relative path for a response, mirroring host + pathname (+ query hash)
+function relFor(method, url, ct, used) {
+  let host = 'site', pathname = '/', search = ''
+  try { const u = new URL(url); host = u.hostname || 'site'; pathname = u.pathname || '/'; search = u.search } catch {}
+  let base = (pathname.endsWith('/') || pathname === '') ? host + pathname + 'index' : host + pathname
+  base = sanitize(base)
+  const hasExt = /\.[a-zA-Z0-9]{1,6}$/.test(base)
+  const meth = (method && method !== 'GET') ? '__' + method.toLowerCase() : ''
+  let rel
+  if (hasExt) {
+    // static asset — the path already identifies it; skip the query cache-buster (?dpl, ?v …),
+    // keep only a non-GET marker. Real collisions still fall through to the ~n disambiguator below.
+    rel = meth ? base.replace(/(\.[a-zA-Z0-9]{1,6})$/, meth + '$1') : base
+  } else {
+    // extensionless (a route / API / RSC) — the query often selects the content, so keep its hash
+    rel = base + (search ? '__q' + hash(search) : '') + meth + extFromCt(ct)
+  }
+  let out = rel, n = 1
+  while (used.has(out)) { out = rel.replace(/(\.[a-zA-Z0-9.]+)$/, `~${n}$1`); if (out === rel) out = `${rel}~${n}`; n++ }
+  used.add(out); return out
+}
+
 // In-page exploration to WARM the cache: fire the interactions that lazy-load data or reveal
 // client-side state, so their responses get recorded. Bounded + safe (no navigations away).
 async function warm(page) {
@@ -90,28 +138,39 @@ async function run() {
   const startNorm = norm(start)
   const docRec = [...rec.values()].find(r => norm(r.url) === startNorm && (r.headers['content-type'] || '').includes('html'))
 
-  /* ---------------- write the archive ---------------- */
-  const dataDir = path.join(outDir, 'data')
-  mkdirSync(dataDir, { recursive: true })
+  /* ---------------- write the archive (a browsable, editable mirror) ---------------- */
+  const filesDir = path.join(outDir, 'files')
+  mkdirSync(filesDir, { recursive: true })
+  const used = new Set()
   const manifest = []
   for (const [key, r] of rec) {
-    const file = `${hash(key)}.bin`
-    writeFileSync(path.join(dataDir, file), r.body)
-    manifest.push({ key, method: r.method, url: r.url, status: r.status, headers: r.headers, file, ct: r.headers['content-type'] || '' })
+    const ct = r.headers['content-type'] || ''
+    let file = relFor(r.method, r.url, ct, used)
+    try {
+      const abs = path.join(filesDir, file); mkdirSync(path.dirname(abs), { recursive: true }); writeFileSync(abs, r.body)
+    } catch {
+      // a path that's both a file and a directory (or otherwise unwritable) → hashed fallback
+      file = '_blobs/' + hash(key) + extFromCt(ct); used.add(file)
+      const abs = path.join(filesDir, file); mkdirSync(path.dirname(abs), { recursive: true }); writeFileSync(abs, r.body)
+    }
+    manifest.push({ key, method: r.method, url: r.url, status: r.status, headers: r.headers, file, ct })
   }
   // if we never captured a real HTML document response, synthesize one from the rendered DOM
   if (!docRec && docHtml) {
-    const file = 'index.bin'; writeFileSync(path.join(dataDir, file), Buffer.from(docHtml))
+    let host = 'site'; try { host = new URL(start).hostname || 'site' } catch {}
+    const file = sanitize(host + '/index.html')
+    const abs = path.join(filesDir, file); mkdirSync(path.dirname(abs), { recursive: true }); writeFileSync(abs, Buffer.from(docHtml))
     manifest.push({ key: 'GET ' + startNorm, method: 'GET', url: start, status: 200, headers: { 'content-type': 'text/html; charset=utf-8' }, file, ct: 'text/html', synth: true })
   }
   writeFileSync(path.join(outDir, 'index.json'), JSON.stringify({ start, startNorm, origin, count: manifest.length, entries: manifest }))
   writeFileSync(path.join(outDir, 'serve.mjs'), SERVER)
-  writeFileSync(path.join(outDir, 'README.md'), `# UIForge behavior archive — ${start}\n\nA complete, offline replica that RUNS THE REAL CODE against recorded responses. Client-side interactions (tabs, filters, lists, accordions, motion, scroll) work because it is the site's own JavaScript, replaying its own data.\n\n\`\`\`bash\nnode serve.mjs        # zero-dependency replay server\n\`\`\`\n\nThen open the printed http://localhost URL. ${manifest.length} responses archived.\n\nServer-dependent actions only work if their response was recorded during capture — run with \`--explore\` and interact more to widen coverage.\n`)
+  writeFileSync(path.join(outDir, 'README.md'), `# UIForge behavior archive — ${start}\n\nA complete, offline replica that RUNS THE REAL CODE against recorded responses. Client-side interactions (tabs, filters, lists, accordions, motion, scroll) work because it is the site's own JavaScript, replaying its own data.\n\n\`\`\`bash\nnode serve.mjs        # zero-dependency replay server\n\`\`\`\n\nThen open the printed http://localhost URL. ${manifest.length} responses archived.\n\n## Browse & edit it\n\nEverything is under \`files/\` as a **readable mirror of the site** — real folders, real filenames, real extensions (\`.html\`, \`.js\`, \`.css\`, \`.json\`, fonts, images), not opaque blobs. Open any of it. **Edit a text response** (e.g. \`files/${(() => { try { return new URL(start).hostname } catch { return 'site' } })()}/index.html\`) and re-run \`node serve.mjs\` — the change shows up, because the server reads files fresh on every request. \`index.json\` maps each request → its file.\n\nEditing minified vendor JS by hand is painful, though. If you want a **clean, componentized copy you can actually develop** — React + Tailwind, your own content — generate a **Rebuild** instead (\`uiforge-export\` / \`/uiforge:clone --react\`). The Archive is for *behavior*; the Rebuild is for *editing*.\n\nServer-dependent actions only replay if their response was recorded during capture — run with \`--explore\` and interact more to widen coverage.\n`)
 
   const xhr = manifest.filter(m => /json|x-component|javascript|text\/plain/.test(m.ct) && !/html|css|font|image/.test(m.ct)).length
   console.log(`    ${C}recorded${X}   ${G}${manifest.length}${X} responses ${D}(scripts, css, ${xhr} data/API payloads, fonts, images)${X}`)
+  console.log(`    ${C}mirror${X}     ${G}${outDir}/files/${X}  ${D}browsable + editable (real filenames/exts; edit a text file → replay reflects it)${X}`)
   console.log(`    ${C}replay${X}     ${G}${outDir}/${X}  ${D}→ node serve.mjs${X}`)
-  console.log(`\n    ${D}cd ${outDir} && node serve.mjs${X}\n`)
+  console.log(`\n    ${D}cd ${outDir} && node serve.mjs${X}   ${D}(want an editable React copy instead? use Rebuild: /uiforge:clone --react)${X}\n`)
 }
 
 /* ============ the zero-dependency replay server (written into the archive) ============ */
@@ -137,7 +196,7 @@ http.createServer((req, res) => {
   let e = byKey.get(req.method + ' ' + full) || byNorm.get(req.method + ' ' + norm(full)) || byPath.get(req.method + ' ' + (req.url.split('?')[0]))
   if (!e && isRoot) e = idx.entries.find(x => norm(x.url) === idx.startNorm && (x.ct || '').includes('html')) || idx.entries.find(x => (x.ct || '').includes('text/html')) || idx.entries[0]
   if (!e) { res.writeHead(204, { 'access-control-allow-origin': '*' }); return res.end() }
-  let body = readFileSync(path.join(HERE, 'data', e.file))
+  let body = readFileSync(path.join(HERE, 'files', e.file))
   const h = Object.assign({}, e.headers, { 'access-control-allow-origin': '*', 'cache-control': 'no-store' })
   if ((e.ct || '').includes('text/html')) { let s = body.toString('utf8').replace(/<head[^>]*>/i, m => m + inject); body = Buffer.from(s) }
   h['content-length'] = body.length

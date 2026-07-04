@@ -46,7 +46,7 @@ Most tools give you a still. UIForge gives you the **behavior** first, then the 
 
 | | what it is | for |
 |---|---|---|
-| **⭐ Archive** (`uiforge-archive`) | the **complete behavior** — the site's own code + every recorded response, replayed offline | a copy that **works**: tabs, filters, lists, client-side transitions, motion, scroll |
+| **⭐ Archive** (`uiforge-archive`) | the **complete behavior** — the site's own code + every recorded response, replayed offline from a **browsable, editable mirror** (real files, real filenames — not opaque blobs) | a copy that **works**: tabs, filters, lists, client-side transitions, motion, scroll |
 | **Freeze** (`uiforge-freeze`) | a self-contained, **pixel-faithful** still — real CSS/fonts/assets kept, scripts stripped, time frozen | an exact offline still — and the **oracle** the rebuild is measured against |
 | **Rebuild** (`uiforge-export`) | a **clean, componentized** Vite + React + Tailwind project — components, Tailwind classes, content externalized | building on the design, editing, shipping with **your** content |
 
