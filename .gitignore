@@ -34,3 +34,6 @@ dist/
 
 # local-only showcase workshop (demo code + heavy archives — never committed; only docs/ images+videos go to git)
 showcase-workshop/
+
+# stray research artifacts (papers downloaded by research agents)
+downloads/
