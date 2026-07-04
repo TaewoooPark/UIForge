@@ -45,22 +45,22 @@
 실제 사이트 다섯 개를 캡처만으로 동결했다. 원본(좌) vs 동결본(우):
 
 <p align="center">
-  <img src="./docs/copy-stripe.png?v=3370" alt="stripe.com 원본 vs 동결본, 거의 픽셀 동일" width="100%">
+  <img src="./docs/copy-stripe.png?v=3460" alt="stripe.com 원본 vs 동결본, 거의 픽셀 동일" width="100%">
 </p>
 <p align="center"><sub><em><b>stripe.com</b> — 그라디언트 히어로, 로고 줄, 쿠키 배너까지. 동결본은 진짜 CSS를 지켜 그대로 렌더된다(손실 재구성은 이 페이지를 40% 높이로 붕괴시켰다).</em></sub></p>
 
 <table>
 <tr>
-<td width="50%" align="center"><img src="./docs/copy-anthropic.png?v=3370" alt="anthropic.com 원본 vs 동결본" width="100%"></td>
-<td width="50%" align="center"><img src="./docs/copy-vercel.png?v=3370" alt="vercel.com 원본 vs 동결본, canvas 삼각형 포함" width="100%"></td>
+<td width="50%" align="center"><img src="./docs/copy-anthropic.png?v=3460" alt="anthropic.com 원본 vs 동결본" width="100%"></td>
+<td width="50%" align="center"><img src="./docs/copy-vercel.png?v=3460" alt="vercel.com 원본 vs 동결본, canvas 삼각형 포함" width="100%"></td>
 </tr>
 <tr>
 <td align="center"><sub><b>anthropic.com</b> — 헤드라인·내비·본문·오렌지 밴드까지 충실하게.</sub></td>
 <td align="center"><sub><b>vercel.com</b> — <b>canvas 삼각형</b> 히어로까지 렌더된다(동결본은 라이브 페이지를 지켜서 canvas가 공짜로 딸려온다).</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="./docs/copy-linear.png?v=3370" alt="linear.app 원본 vs 동결본" width="100%"></td>
-<td align="center"><img src="./docs/copy-openai.png?v=3370" alt="openai.com을 --headed로 Cloudflare 너머에서 도달해 진짜 CSS로 동결" width="100%"></td>
+<td align="center"><img src="./docs/copy-linear.png?v=3460" alt="linear.app 원본 vs 동결본" width="100%"></td>
+<td align="center"><img src="./docs/copy-openai.png?v=3460" alt="openai.com을 --headed로 Cloudflare 너머에서 도달해 진짜 CSS로 동결" width="100%"></td>
 </tr>
 <tr>
 <td align="center"><sub><b>linear.app</b> — 어두운 히어로를 자신의 Inter Variable로.</sub></td>
@@ -162,7 +162,15 @@ clone/  (npm install && npm run dev)
 | **드롭다운 · 메뉴 · 아코디언** | ✓ | 캡처 중 클릭 → 열린 상태 + 클릭 런타임 |
 | **스크롤 등장** 상태 · 지연 미디어 | ✓ | 스냅샷 전 페이지 전체 스크롤 |
 | **canvas / WebGL** 히어로 | ✓ *(선택)* | `captureStream()` → 반복 `<video>` |
-| **JS 모션**(Framer / GSAP) | ~ *(선택)* | 시간에 걸쳐 샘플링 → 근사 `@keyframes` |
+| **정확한** JS 애니메이션(Framer / Motion) | ✓ | `Element.animate()` 후킹 → 진짜 `@keyframes` + 커브·스태거·fill |
+| **스크롤 연동** 애니메이션 | ✓ | 네이티브 `ScrollTimeline`/`ViewTimeline` → `animation-timeline` |
+| 캐러셀·로테이터에서 **결정적** | ✓ | 스냅샷 순간에 시간 정지(Playwright clock) |
+| 진짜 **`<video>`**(히어로 / 배경) | ✓ | 소스 + 포스터 + loop/muted 캡처 |
+| **자립형**(오프라인) | ✓ *(선택)* | `export --assets`, 또는 `freeze --inline` → data-URI 단일 파일 |
+| **반응형**(모바일) 변형 | ✓ *(선택)* | `--responsive` 모바일 패스 → `max-sm:` 클래스 |
+| **Cloudflare / 봇 벽** 뒤 사이트 | ✓ *(선택)* | `--headed --profile`(cf_clearance 영속 + 챌린지 대기) |
+| **로그인** 뒤 콘텐츠 | ✓ *(선택)* | `--profile` / `--storage-state`(저장된 세션) |
+| **사이트 전체**(여러 페이지) | ✓ | `uiforge-site`가 크롤 → 하나의 React-Router 프로젝트 |
 
 재구성의 모든 값은 추측이 아니라 도구가 산출한 것이다. 시그니처는 `uiforge-theme`가, 레이아웃과 스타일은 `uiforge-reconstruct`가 만들고, 일치 여부는 `uiforge-diff`가 검증한다. 그리고 클론은 접근성 검사를 통과한다(`uiforge-render-audit`). 겉모습은 같지만, 원본이 지키지 못했을 수도 있는 WCAG 대비를 만족한다.
 
@@ -238,10 +246,12 @@ node tools/uiforge-lint.mjs         <dir> [--strict]
 
 ## 정직한 한계
 
-- **모션과 인터랙션** *(대부분 캡처됨, 위 표 참고).* CSS 애니메이션, `:hover`/`:focus`/`:active`, 드롭다운·메뉴·아코디언, 스크롤 등장 상태가 모두 넘어온다. canvas/WebGL은 영상으로 녹화되고 JS 모션은 keyframes로 샘플링된다(둘 다 선택). **남는 것**은 이렇다. 자기 패널을 다시 칠하는 대신 *포털*(DOM 다른 곳의 새 서브트리)로 열리는 메뉴, 제거된 고정 헤더 안에 있는 토글, **스크롤 연동** 타임라인과 물리 기반 모션(샘플링은 반복 재생할 뿐 스크롤에 맞춰 스크럽하지 못한다), 캡처 전에 이미 끝난 일회성 등장 애니메이션. JS 모션 샘플링은 본질적으로 근사다. 이동·확대·회전·페이드는 재현하지만 파티클 시스템은 아니다.
-- **웹폰트.** CORS를 허용하지 않고 제공되는 폰트나 인증 뒤에 있는 폰트는 여전히 시스템 폰트로 떨어진다. 그 외에는 전부 진짜 웹폰트로 렌더링된다.
-- **한 장의 스냅샷.** 인증 뒤의 콘텐츠와 반응형 브레이크포인트는 캡처를 더 떠야 한다(모바일 뷰포트는 플래그 하나면 된다).
-- **"깔끔함"은 단계적이다.** 내보낸 결과물의 스타일은 캡처에서 온 인라인이다(충실하고 편집 가능하며 테마가 추출되어 있다). 그것을 관용적인 Tailwind 유틸리티와 컴포넌트로 끌어올리는 일은 `/clone`의 에이전트 단계이며, 아직 완전히 자동은 아니다.
+여기 있던 대부분이 이제 해결됐다(위 표 참고). 정확한 JS 애니메이션, 네이티브 스크롤 연동 모션, 캐러셀에서의 결정성, 진짜 영상, 웹폰트(CORS로 막힌 것도 `--inline`으로), 인증, Cloudflare, 사이트 전체 크롤까지. **정직하게 남는 것**은 이렇다.
+
+- ***동결본*의 JS 마운트 SPA 히어로.** 동결본은 결정성을 위해 스크립트를 제거하므로, 프레임워크가 *JS로 마운트*하는 히어로(openai.com의 ChatGPT 프롬프트)는 라이브와 다른 정적 슬라이드로 렌더된다. *재건본* 경로(JS 실행 후 computed 스타일을 읽음)는 이걸 지키지만 동결본은 아니다. 시간 정지는 캐러셀·로테이터는 고치지만 JS 마운트 콘텐츠는 아니다.
+- **JS로 구동되는 스크롤 효과**(네이티브 CSS API가 아니라 rAF로 `scrollY`를 읽는 것). **최종 상태**는 스크롤 스루로 캡처되지만, 스크롤에 맞춰 스크럽되는 모션은 재생되지 않는다.
+- **물리 / 파티클** 모션과 **canvas** 인터랙션. 영상으로 녹화되지, 다시 시뮬레이션되지는 않는다.
+- **"관용적"은 마지막 한 걸음.** 재건본은 진짜로 컴포넌트화·Tailwind 클래스화되어 있지만, 모든 임의 `[value]`를 디자인 토큰 유틸리티로 매핑하고 컴포넌트를 의미 있게 이름 붙이는 일은 `/clone` 에이전트의 다듬기 단계이며 아직 완전 자동은 아니다.
 
 ## 저장소 구조
 

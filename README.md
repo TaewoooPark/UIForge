@@ -45,22 +45,22 @@ The freeze renders identical to the live site (it *is* its CSS); the rebuild is 
 Five real sites, frozen from the capture alone — original (left) vs freeze (right):
 
 <p align="center">
-  <img src="./docs/copy-stripe.png?v=3370" alt="stripe.com original vs freeze, near pixel-identical" width="100%">
+  <img src="./docs/copy-stripe.png?v=3460" alt="stripe.com original vs freeze, near pixel-identical" width="100%">
 </p>
 <p align="center"><sub><em><b>stripe.com</b> — the gradient hero, the logo row, the cookie banner: the freeze keeps the real CSS, so it renders identically (the lossy reconstruction collapsed this page to 40% height).</em></sub></p>
 
 <table>
 <tr>
-<td width="50%" align="center"><img src="./docs/copy-anthropic.png?v=3370" alt="anthropic.com original vs freeze" width="100%"></td>
-<td width="50%" align="center"><img src="./docs/copy-vercel.png?v=3370" alt="vercel.com original vs freeze, including the canvas triangle" width="100%"></td>
+<td width="50%" align="center"><img src="./docs/copy-anthropic.png?v=3460" alt="anthropic.com original vs freeze" width="100%"></td>
+<td width="50%" align="center"><img src="./docs/copy-vercel.png?v=3460" alt="vercel.com original vs freeze, including the canvas triangle" width="100%"></td>
 </tr>
 <tr>
 <td align="center"><sub><b>anthropic.com</b> — headline, nav, body, and the orange band, all faithful.</sub></td>
 <td align="center"><sub><b>vercel.com</b> — even the <b>canvas triangle</b> hero renders (the freeze keeps the live page, so canvas comes free).</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="./docs/copy-linear.png?v=3370" alt="linear.app original vs freeze" width="100%"></td>
-<td align="center"><img src="./docs/copy-openai.png?v=3370" alt="openai.com reached past Cloudflare with --headed, frozen with its real CSS" width="100%"></td>
+<td align="center"><img src="./docs/copy-linear.png?v=3460" alt="linear.app original vs freeze" width="100%"></td>
+<td align="center"><img src="./docs/copy-openai.png?v=3460" alt="openai.com reached past Cloudflare with --headed, frozen with its real CSS" width="100%"></td>
 </tr>
 <tr>
 <td align="center"><sub><b>linear.app</b> — the dark hero in its own Inter Variable.</sub></td>
@@ -82,11 +82,11 @@ Five real sites, frozen from the capture alone — original (left) vs freeze (ri
 <td align="center"><sub><b>Dropdowns / menus / accordions.</b> UIForge clicks the real toggle during capture, records the panel's open state, and replays it — the clone's menu <b>opens on click</b>.</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="./docs/motion-js.gif?v=3310" alt="JS-driven motion sampled from gsap.com and replayed as looping CSS keyframes" width="100%"></td>
+<td align="center"><img src="./docs/motion-waapi.gif?v=3460" alt="linear.app's staggered entrance animation replayed exactly in the clone with the real easing curve and stagger" width="100%"></td>
 <td align="center"><img src="./docs/interaction-hover.gif?v=3310" alt="Hover states replayed in the reconstruction as the cursor moves over interactive elements" width="100%"></td>
 </tr>
 <tr>
-<td align="center"><sub><b>JS motion → keyframes.</b> Framer / GSAP animate in JS with nothing in the stylesheet — UIForge <b>samples</b> the movement and synthesizes looping <code>@keyframes</code> (gsap.com, above).</sub></td>
+<td align="center"><sub><b>Exact JS motion.</b> Framer / Motion animate through <code>Element.animate()</code> — UIForge hooks it and replays the <b>real</b> keyframes, curve, and stagger (linear.app's entrance, above), not a sampled guess.</sub></td>
 <td align="center"><sub><b>Hover / focus / active.</b> The <code>:hover</code> rules are recovered from the stylesheets and replayed, so the clone <b>reacts to the pointer</b>.</sub></td>
 </tr>
 </table>
@@ -168,9 +168,15 @@ clone/  (npm install && npm run dev)  ·  content swap: your copy, same componen
 | **JS motion** (Framer / GSAP) | ~ *(opt-in)* | sampled over time → approximating `@keyframes` |
 | A **pixel-faithful** offline replica | ✓ | `uiforge-freeze` keeps the real CSS/fonts/assets |
 | A **clean componentized** rebuild | ✓ | segment + tailwindify → `components/*.tsx`, Tailwind classes |
-| **Self-contained** assets (offline) | ✓ *(opt-in)* | `export --assets` downloads img/font/bg → `/public` |
+| **Self-contained** assets (offline) | ✓ *(opt-in)* | `export --assets`, or `freeze --inline` → one data-URI file |
 | **Responsive** (mobile) variants | ✓ *(opt-in)* | `--responsive` mobile pass → `max-sm:` classes |
-| Sites behind **Cloudflare / bot walls** | ~ *(opt-in)* | `--headed` real-browser bypass (best-effort) |
+| **Exact** JS animation (Framer / Motion) | ✓ | `Element.animate()` hook → real `@keyframes` + curve/stagger/fill |
+| **Scroll-linked** animation | ✓ | native `ScrollTimeline`/`ViewTimeline` → `animation-timeline` |
+| **Deterministic** on carousels / rotators | ✓ | time-frozen at the snapshot instant (Playwright clock) |
+| Real **`<video>`** (hero / background) | ✓ | source + poster + loop/muted captured |
+| Sites behind **Cloudflare / bot walls** | ✓ *(opt-in)* | `--headed --profile` (persistent `cf_clearance` + challenge wait) |
+| Content behind a **login** | ✓ *(opt-in)* | `--profile` / `--storage-state` (saved session) |
+| A **whole site** (many pages) | ✓ | `uiforge-site` crawls → one React-Router project |
 
 Every value in the reconstruction is produced by the tools, not guessed — the
 signature by `uiforge-theme`, the layout and styles by `uiforge-reconstruct`, the
@@ -223,16 +229,17 @@ external-dependency Node; rendering uses Playwright.
 ### Clone pipeline
 
 ```bash
-node tools/uiforge-freeze.mjs    <url│file> [--out freeze.html] [--viewport WxH] [--headed]
-      # the PIXEL-FAITHFUL oracle: inline the real stylesheets (fetched server-side, url()s
-      # absolutized), strip scripts, keep the settled DOM. Renders identical to the live site.
+node tools/uiforge-freeze.mjs    <url│file> [--out freeze.html] [--inline] [--headed] [--profile dir] [--shot ref.png]
+      # the PIXEL-FAITHFUL oracle: inline the real stylesheets (server-side), strip scripts, freeze
+      # time at the snapshot instant. --inline embeds every asset as data: URIs (one offline file);
+      # --shot saves the live screenshot at that frozen instant (the aligned proof pair).
 
-node tools/uiforge-capture.mjs   <url│file> [--out capture.json] [--record-canvas] [--sample-motion] [--responsive] [--headed]
-      # extract every element's exact computed styles, geometry, text, SVGs + a deduped token set.
-      # Recovers real @font-face, @keyframes, :hover/:focus rules server-side (past CORS), explores
-      # dropdown open-states, scrolls to fire reveals; emits a coverage manifest (found→captured→why).
-      #   --record-canvas  record each <canvas> to a looping .webm     --sample-motion  JS motion → @keyframes
-      #   --responsive     mobile pass → max-sm: variants + stability   --headed         clear a Cloudflare/bot wall
+node tools/uiforge-capture.mjs   <url│file> [--record-canvas] [--sample-motion] [--responsive] [--headed] [--profile dir]
+      # extract every element's exact computed styles, geometry, text, SVGs, real videos + a token set.
+      # Recovers real @font-face, @keyframes, :hover/:focus rules + EXACT WAAPI keyframes (curve, stagger,
+      # scroll-linked), explores dropdowns, freezes time; emits a coverage manifest (found→captured→why).
+      #   --record-canvas  <canvas> → looping .webm     --sample-motion  rAF motion → @keyframes (fallback)
+      #   --responsive  mobile → max-sm: + stability     --headed/--profile  clear a bot wall / a login session
 
 node tools/uiforge-theme.mjs     capture.json [--out-css theme.css] [--out-json theme.json]
       # infer semantic roles by usage → a Tailwind v4 @theme (bg/fg/muted/surface/border/accent)
@@ -251,6 +258,10 @@ node tools/uiforge-assets.mjs    capture.json --dest ./clone/public
 
 node tools/uiforge-diff.mjs      <ref> <out> [--segments segment.json] [--json]
       # localized fidelity: per-section similarity + SSIM + structure (height/node) + element-presence
+
+node tools/uiforge-site.mjs      <start-url> --out-dir ./site [--max 6] [--assets] [--headed] [--profile dir]
+      # clone a WHOLE site: crawl same-origin pages, capture each, stitch into ONE React-Router
+      # project (a route per page, namespaced components, one shared @theme). The "one page" limit, gone.
 ```
 
 ### Accessibility & craft QA (so the clone is better than a scrape)
@@ -291,22 +302,20 @@ Variable + Berkeley Mono) — the real design system, as a Tailwind v4 `@theme` 
 
 ## Honest limits
 
-- **Motion & interaction** *(largely captured — see the grid above)*: CSS animations,
-  `:hover`/`:focus`/`:active`, dropdowns/menus/accordions, and scroll-reveal states all
-  come across; canvas/WebGL is recorded to video and JS motion is sampled into keyframes
-  (both opt-in). The **residuals**: menus that open via a *portal* (a new subtree elsewhere
-  in the DOM) rather than restyling their own panel; toggles that live in a removed sticky
-  header; **scroll-linked** timelines and physics-based motion (sampling loops them, it
-  doesn't scrub them to scroll); and truly one-shot entrance animations that finished before
-  capture. JS-motion sampling is *approximate* by nature — it reproduces
-  translate/scale/rotate/fade, not a particle system.
-- **Webfonts**: a font served *without* permissive CORS, or behind auth, still falls back to
-  a system face — everything else renders in the real webfont.
-- **One snapshot**: content behind auth and responsive breakpoints need extra captures (a
-  mobile viewport is one flag).
-- **"Clean" is staged**: the export's styling is inline from the capture (faithful,
-  editable, theme extracted); lifting it to idiomatic Tailwind utilities and components
-  is the `/clone` agent step, not yet fully automatic.
+Most of what used to be here is now handled (see the grid): exact JS animation, native
+scroll-linked motion, determinism on carousels, real videos, webfonts (even CORS-locked, via
+`--inline`), auth, Cloudflare, and whole-site crawl. The **honest residuals** that remain:
+
+- **JS-mounted SPA heroes on the *freeze***: the freeze strips scripts for determinism, so a
+  hero that a framework *mounts with JS* (openai.com's ChatGPT prompt) renders a different
+  static slide than the live view. The *rebuild* path (which reads the post-JS computed styles)
+  keeps it; the freeze doesn't. Time-freeze fixes carousels/rotators, not JS-mounted content.
+- **JS-driven scroll effects** (rAF reading `scrollY`, not the native CSS API): their **end
+  state** is captured via the scroll-through, but the scroll-scrubbed motion isn't replayed.
+- **Physics / particle** motion and **canvas** interaction: recorded to video, not re-simulated.
+- **"Idiomatic" is the last mile**: the rebuild is genuinely componentized and Tailwind-classed,
+  but mapping every arbitrary `[value]` to a design-token utility and naming components
+  semantically is the `/clone` agent's polish step, not fully automatic.
 
 ## Repository layout
 
