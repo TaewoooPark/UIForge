@@ -76,6 +76,47 @@
 
 ---
 
+## 복제했더니 — 실제로 *작동한다*. 대표 5곳.
+
+아래 사이트는 전부 플러그인이 **아카이브해서 오프라인으로 재생**한 것이다(`uiforge-archive --explore`). GIF는 **네트워크 없이** 도는 클론이고, 인터랙션은 진짜다 — 사이트 자신의 코드가 녹화된 데이터를 굴린다.
+
+<table>
+<tr>
+<td width="50%" align="center"><img src="./docs/showcase-shadcn.gif?v=3510" alt="ui.shadcn.com을 오프라인 재생: 검색을 누르면 진짜 커맨드 팔레트 다이얼로그가 열린다" width="100%"></td>
+<td width="50%" align="center"><img src="./docs/showcase-vercel.gif?v=3510" alt="vercel.com을 오프라인 재생: Pricing 클릭이 진짜 클라이언트 전환" width="100%"></td>
+</tr>
+<tr>
+<td align="center"><sub><b>ui.shadcn.com</b> ⭐ — 오프라인인데 검색을 누르면 진짜 <b>커맨드 팔레트 다이얼로그</b>가 열린다. 컴포넌트 갤러리 전체가 동작. (응답 121개 아카이브.)</sub></td>
+<td align="center"><sub><b>vercel.com</b> — Pricing 클릭이 새로고침 없는 진짜 <b>클라이언트 전환</b>(캐시된 RSC). (189개.)</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="./docs/showcase-linear.gif?v=3510" alt="linear.app을 오프라인 재생, 클라이언트 전환" width="100%"></td>
+<td align="center"><img src="./docs/showcase-framer.gif?v=3510" alt="framer.com을 오프라인 재생: 진짜 모션과 영상 히어로" width="100%"></td>
+</tr>
+<tr>
+<td align="center"><sub><b>linear.app</b> — 클라이언트 내비 + 진짜 Inter Variable와 스태거 모션. (426개.)</sub></td>
+<td align="center"><sub><b>framer.com</b> — 진짜 <b>모션 + 영상 히어로</b>가 오프라인에서 재생. (250개.)</sub></td>
+</tr>
+</table>
+
+<p align="center">
+  <img src="./docs/showcase-apple.gif?v=3510" alt="apple.com/macbook-air를 오프라인 재생: 스크롤 디자인과 영상" width="66%">
+</p>
+<p align="center"><sub><b>apple.com/macbook-air</b> — 스크롤 기반 레이아웃과 영상 히어로를 오프라인 재생. (160개.)</sub></p>
+
+그리고 각각 **동결본**으로는 픽셀 충실하다 — 원본(좌) vs 동결본(우):
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="./docs/showcase-shadcn.png?v=3510" alt="ui.shadcn.com 원본 vs 동결본" width="100%"></td>
+<td width="33%" align="center"><img src="./docs/showcase-vercel.png?v=3510" alt="vercel.com 원본 vs 동결본" width="100%"></td>
+<td width="33%" align="center"><img src="./docs/showcase-apple.png?v=3510" alt="apple.com 원본 vs 동결본" width="100%"></td>
+</tr>
+</table>
+<p align="center"><sub><em>동작 <b>과</b> 픽셀 충실도를 한 번의 캡처로 — <code>node tools/uiforge-archive.mjs &lt;url&gt; --explore</code> 다음 <code>node archive/serve.mjs</code>.</em></sub></p>
+
+---
+
 ## 정적 스냅샷이 아니라 모션과 인터랙션까지 복제한다
 
 <table>

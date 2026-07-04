@@ -76,6 +76,47 @@ Five real sites, frozen from the capture alone — original (left) vs freeze (ri
 
 ---
 
+## Cloned — and it actually *works*. Five flagship sites.
+
+Each site below was **archived and replayed offline** by the plugin (`uiforge-archive --explore`). The GIFs are the clone running **with no network** — the interactions are genuine, driven by the site's own code against recorded data.
+
+<table>
+<tr>
+<td width="50%" align="center"><img src="./docs/showcase-shadcn.gif?v=3510" alt="ui.shadcn.com replayed offline: clicking the search opens the real command-palette dialog" width="100%"></td>
+<td width="50%" align="center"><img src="./docs/showcase-vercel.gif?v=3510" alt="vercel.com replayed offline: clicking Pricing performs a real client-side transition" width="100%"></td>
+</tr>
+<tr>
+<td align="center"><sub><b>ui.shadcn.com</b> ⭐ — offline, clicking search opens the real <b>command-palette dialog</b>; the whole component gallery behaves. (121 responses archived.)</sub></td>
+<td align="center"><sub><b>vercel.com</b> — clicking Pricing is a real <b>client-side transition</b>, no reload, from cached RSC. (189 responses.)</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="./docs/showcase-linear.gif?v=3510" alt="linear.app replayed offline with a client-side transition" width="100%"></td>
+<td align="center"><img src="./docs/showcase-framer.gif?v=3510" alt="framer.com replayed offline: real motion and video hero play" width="100%"></td>
+</tr>
+<tr>
+<td align="center"><sub><b>linear.app</b> — client-side navigation + its real Inter Variable and staggered motion. (426 responses.)</sub></td>
+<td align="center"><sub><b>framer.com</b> — the real <b>motion + video hero</b> play offline. (250 responses.)</sub></td>
+</tr>
+</table>
+
+<p align="center">
+  <img src="./docs/showcase-apple.gif?v=3510" alt="apple.com/macbook-air replayed offline: scroll-driven design and video" width="66%">
+</p>
+<p align="center"><sub><b>apple.com/macbook-air</b> — scroll-driven layout and the video hero, replayed offline. (160 responses.)</sub></p>
+
+And each is **pixel-faithful** as a Freeze — original (left) vs freeze (right):
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="./docs/showcase-shadcn.png?v=3510" alt="ui.shadcn.com original vs freeze" width="100%"></td>
+<td width="33%" align="center"><img src="./docs/showcase-vercel.png?v=3510" alt="vercel.com original vs freeze" width="100%"></td>
+<td width="33%" align="center"><img src="./docs/showcase-apple.png?v=3510" alt="apple.com original vs freeze" width="100%"></td>
+</tr>
+</table>
+<p align="center"><sub><em>Behavior <b>and</b> pixel-fidelity, from one capture — <code>node tools/uiforge-archive.mjs &lt;url&gt; --explore</code> then <code>node archive/serve.mjs</code>.</em></sub></p>
+
+---
+
 ## It clones motion and interaction too — not just a static snapshot
 
 <table>
