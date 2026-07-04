@@ -74,6 +74,13 @@ function inlineDecls(style) {
   return o
 }
 
+// the `animation` shorthand for a node's motion — exact WAAPI timing when captured, else a loop.
+function animShorthand(n) {
+  const m = n.motion, name = `uif-js-${n.i}`
+  if (!m.exact) return `${name} ${m.dur}s linear infinite`
+  return `${name} ${m.dur}s ${m.ease || 'linear'} ${m.delay || 0}s ${m.iter || 1} ${m.dir || ''} ${m.fill || 'both'}`.replace(/\s+/g, ' ').trim()
+}
+
 /* ---------- motion + interaction CSS, appended after the theme (both paths) ---------- */
 // @font-face (real webfont) + @keyframes (CSS motion) + synthesized sampled-motion keyframes
 // + .uif-<i>:hover/:focus/:active companion rules (!important so they beat the base styles).
@@ -134,7 +141,7 @@ function writeProject(files) {
 function flatStyleObj(n) {
   const o = inlineDecls(n.style)
   if (n.w) o.push(`width: ${q(n.w + 'px')}`)
-  if (n.motion) o.push(`animation: ${q(`uif-js-${n.i} ${n.motion.dur}s linear infinite`)}`)
+  if (n.motion) o.push(`animation: ${q(animShorthand(n))}`)
   o.push(`boxSizing: "border-box"`)
   return `{{ ${o.join(', ')} }}`
 }
@@ -269,7 +276,7 @@ function buildComponentized() {
     }
     if (n.hover || n.focus || n.active) cls.push(`uif-${n.i}`)
     const decls = inlineDecls(leftover)
-    if (n.motion) decls.push(`animation: ${q(`uif-js-${n.i} ${n.motion.dur}s linear infinite`)}`)
+    if (n.motion) decls.push(`animation: ${q(animShorthand(n))}`)
     return { className: cls.filter(Boolean).join(' '), style: decls.length ? `{{ ${decls.join(', ')} }}` : '' }
   }
   const propAt = (ctx, p, kind) => (ctx.mode === 'repeat' ? ctx.propAt(`${p}|${kind}`) : null)

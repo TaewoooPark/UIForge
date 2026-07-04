@@ -271,6 +271,40 @@ async function sampleJsMotion(page) {
   })
 }
 
+// Extract EXACT keyframes + timing from the Web Animations API: every animation the page
+// created via Element.animate() (recorded by our init hook, so one-shot entrances survive)
+// plus everything getAnimations() reports at the frozen instant (CSS animations included).
+// This is exact, not sampled — the real curve, easing, iteration count, delay, and fill.
+async function extractWaapi(page) {
+  return await page.evaluate(() => {
+    const all = [...document.querySelectorAll('body *')], idx = new Map(all.map((el, i) => [el, i]))
+    const kebab = s => s.replace(/[A-Z]/g, m => '-' + m.toLowerCase())
+    const META = new Set(['offset', 'computedOffset', 'easing', 'composite'])
+    const toCss = kfList => kfList.map((k, i, arr) => {
+      const off = k.computedOffset != null ? k.computedOffset : (k.offset != null ? k.offset : i / (arr.length - 1 || 1))
+      const decls = Object.entries(k).filter(([p, v]) => !META.has(p) && v != null && v !== '').map(([p, v]) => `${kebab(p)}:${v}`).join(';')
+      return decls ? `${Math.round(off * 100)}%{${decls}}` : ''
+    }).filter(Boolean).join('')
+    const out = [], seen = new Set()
+    const push = (el, anim) => {
+      const i = idx.get(el); if (i == null) return
+      let kf, t; try { kf = anim.effect.getKeyframes(); t = anim.effect.getTiming() } catch { return }
+      if (!kf || kf.length < 2) return
+      const css = toCss(kf); if (!css) return
+      const key = i + '|' + css; if (seen.has(key)) return; seen.add(key)
+      // skip sub-50ms "animations" — noise, or scroll-linked effects (duration≈0, driven by a
+      // scroll timeline) which time-based @keyframes can't reproduce; those are patch-3 territory.
+      const dur = typeof t.duration === 'number' ? t.duration / 1000 : 0; if (dur < 0.05) return
+      out.push({ i, kf: css, dur: +dur.toFixed(3), iter: t.iterations === Infinity ? 'infinite' : (t.iterations || 1),
+        ease: typeof t.easing === 'string' && t.easing !== 'linear' ? t.easing : 'linear', delay: +((t.delay || 0) / 1000).toFixed(3),
+        dir: t.direction && t.direction !== 'normal' ? t.direction : '', fill: t.fill && t.fill !== 'auto' ? t.fill : 'both' })
+    }
+    for (const rec of (window.__uifAnims || [])) push(rec.el, rec.a)
+    try { for (const el of all) for (const anim of el.getAnimations()) push(el, anim) } catch {}
+    return out.slice(0, 100)
+  })
+}
+
 /* ------------------------------- harness ------------------------------- */
 async function capture(target, viewport, opts = {}) {
   const chromium = await loadChromium()
@@ -282,6 +316,15 @@ async function capture(target, viewport, opts = {}) {
   try {
     const page = await browser.newPage({ viewport, ...(opts.headed ? { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' } : {}) })
     if (opts.headed) await page.addInitScript(() => { Object.defineProperty(navigator, 'webdriver', { get: () => undefined }) })
+    // Record EVERY WAAPI animation the page creates — including one-shot entrances that finish
+    // (and disappear from getAnimations()) before we ever snapshot. Framer Motion, Motion One,
+    // and modern libraries all drive through Element.animate(); hooking it lets us extract the
+    // EXACT keyframes + timing later, instead of guessing by sampling transforms over time.
+    await page.addInitScript(() => {
+      window.__uifAnims = []
+      const orig = Element.prototype.animate
+      if (orig) Element.prototype.animate = function (kf, opt) { const a = orig.call(this, kf, opt); try { window.__uifAnims.push({ el: this, a }) } catch {} return a }
+    })
     // A stray toggle click can pop an alert()/confirm()/beforeunload — that would BLOCK the page
     // and hang the exploration evaluate forever. Auto-dismiss so interaction probing stays safe.
     page.on('dialog', d => d.dismiss().catch(() => {}))
@@ -359,6 +402,12 @@ async function capture(target, viewport, opts = {}) {
       }, rec.interRules)
       for (const n of snap.nodes) { const m = map[n.i]; if (!m) continue; if (m.hover) n.hover = m.hover; if (m.focus) n.focus = m.focus; if (m.active) n.active = m.active }
     }
+    // EXACT motion via the Web Animations API — the real keyframes/timing of every entrance and
+    // loop the page ran (recorded even if already finished). Always on: it's a cheap read, and
+    // exact beats the --sample-motion approximation. Store the full timing so playback matches.
+    { const byIdW = new Map(snap.nodes.map(n => [n.i, n]))
+      for (const m of await extractWaapi(page)) { const n = byIdW.get(m.i); if (!n) continue
+        n.motion = { kf: m.kf, dur: m.dur, iter: m.iter, ease: m.ease, delay: m.delay, dir: m.dir, fill: m.fill, exact: 1 } } }
     // Geometry is read — restart time. Everything below (canvas recording, motion sampling,
     // hover diffing, the responsive pass) runs against live in-page timers again.
     await page.clock.resume().catch(() => {})
@@ -374,7 +423,9 @@ async function capture(target, viewport, opts = {}) {
       await page.emulateMedia({ reducedMotion: 'no-preference' }).catch(() => {})
       await page.waitForTimeout(250)
       const byId0 = new Map(snap.nodes.map(n => [n.i, n]))
-      for (const m of await sampleJsMotion(page)) { const n = byId0.get(m.i); if (n) n.motion = { kf: m.kf, dur: m.dur } } }
+      // sampling is the fallback for rAF/style-driven motion that never touches Element.animate();
+      // never overwrite an EXACT WAAPI capture.
+      for (const m of await sampleJsMotion(page)) { const n = byId0.get(m.i); if (n && !(n.motion && n.motion.exact)) n.motion = { kf: m.kf, dur: m.dur } } }
     // Fold the (pre-removal) toggle exploration onto the snapshot: attach open styles to a
     // resting panel node when one survives, else keep a self-contained record in snap.toggles.
     await resolveToggles(page, snap, toggleFindings.findings)
@@ -623,7 +674,7 @@ function buildCoverage({ snap, interRules, usedAnim, opts, toggleFindings, hover
   return {
     canvases: { found: cFound, recorded: cRec, note: cNote },
     fonts: { faceRulesFound: (snap.fontFaces || []).length },
-    animations: { cssKeyframesUsed: cssKf, jsAnimSampled: jsAnim, note: aNote || undefined },
+    animations: { cssKeyframesUsed: cssKf, jsAnimExact: snap.nodes.filter(n => n.motion && n.motion.exact).length, jsAnimSampled: jsAnim, note: aNote || undefined },
     interaction: { hoverRulesFound, elementsMatched, focusRulesFound, hoverJsRecovered: hs.recovered || 0, hoverEmptyInteractive: hs.candidates || 0, hoverJsOrNone: hs.jsOrNone || 0 },
     toggles: { found: detected, explored: tf.length, captured, skipped, note: detected > tf.length ? `explored ${tf.length}/${detected} (cap)` : undefined },
   }
@@ -691,7 +742,7 @@ if (isMain) {
   { const f = cov.fonts || {}
     console.log(`    ${C}fonts${X}      ${f.faceRulesFound || 0} @font-face recovered${!f.faceRulesFound ? `   ${D}(none — system fallback)${X}` : ''}`) }
   { const a = cov.animations || {}
-    console.log(`    ${C}animation${X}  ${a.cssKeyframesUsed || 0} css keyframes · ${a.jsAnimSampled || 0} js-motion${a.note ? `   ${D}(${a.note})${X}` : ''}`) }
+    console.log(`    ${C}animation${X}  ${a.cssKeyframesUsed || 0} css keyframes · ${a.jsAnimExact || 0} exact WAAPI · ${a.jsAnimSampled || 0} sampled${a.note ? `   ${D}(${a.note})${X}` : ''}`) }
   { const it = cov.interaction || {}
     let s = `hover ${it.hoverRulesFound || 0} · focus ${it.focusRulesFound || 0} rules → ${it.elementsMatched || 0} el matched`
     if (it.hoverJsRecovered) s += ` · +${it.hoverJsRecovered} js-hover`

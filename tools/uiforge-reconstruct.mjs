@@ -50,6 +50,14 @@ const byId = new Map(nodes.map(n => [n.i, n]))
 const kids = new Map()
 for (const n of nodes) { const p = byId.has(n.pid) ? n.pid : -1; if (!kids.has(p)) kids.set(p, []); kids.get(p).push(n) }
 
+// the `animation` shorthand for a node's captured motion: exact WAAPI timing (real easing,
+// iteration count, delay, direction, fill) when we have it, else a sampled loop.
+export function animShorthand(n) {
+  const m = n.motion, name = `uif-js-${n.i}`
+  if (!m.exact) return `${name} ${m.dur}s linear infinite`
+  return `${name} ${m.dur}s ${m.ease || 'linear'} ${m.delay || 0}s ${m.iter || 1} ${m.dir || ''} ${m.fill || 'both'}`.replace(/\s+/g, ' ').trim()
+}
+
 function styleOf(n) {
   const s = n.style || {}, decl = []
   for (const [k, v] of Object.entries(s)) { const prop = CSS[k]; if (prop && v != null && v !== '') decl.push(`${prop}:${v}`) }
@@ -71,7 +79,7 @@ function styleOf(n) {
     const allOut = ch.length > 0 && ch.every(c => { const p = (c.style || {}).pos; return p === 'absolute' || p === 'fixed' })
     if (n.h && ((ch.length === 0 && !n.text) || allOut)) decl.push(`min-height:${n.h}px`)
   }
-  if (n.motion) decl.push(`animation:uif-js-${n.i} ${n.motion.dur}s linear infinite`)  // synthesized JS motion
+  if (n.motion) decl.push(`animation:${animShorthand(n)}`)  // exact WAAPI timing, or sampled → loop
   return decl.join(';')
 }
 function pseudoStyle(ps) {
