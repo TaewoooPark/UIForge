@@ -29,16 +29,17 @@
 
 ---
 
-## Two outputs from one capture
+## Three outputs from one site
 
-The old tension — *a faithful copy keeps the original CSS; clean code throws it away* — is resolved by producing **both**, and using one to verify the other:
+*Look*, *edit*, and *behave* are different copies, so UIForge makes all three:
 
 | | what it is | for |
 |---|---|---|
-| **Freeze** (`uiforge-freeze`) | a self-contained, **pixel-faithful** replica — the site's real CSS, fonts, and assets kept, scripts stripped for determinism | an exact, offline copy — and the **oracle** the rebuild is measured against |
-| **Rebuild** (`uiforge-export`) | a **clean, componentized** Vite + React + Tailwind project — sections & repeated blocks as components, styles as Tailwind classes, content externalized | building on the design, editing, shipping with **your** content |
+| **Freeze** (`uiforge-freeze`) | a self-contained, **pixel-faithful** replica — real CSS/fonts/assets kept, scripts stripped, time frozen | an exact, offline still — and the **oracle** the rebuild is measured against |
+| **Rebuild** (`uiforge-export`) | a **clean, componentized** Vite + React + Tailwind project — components, Tailwind classes, content externalized | building on the design, editing, shipping with **your** content |
+| **Archive** (`uiforge-archive`) | the **complete behavior** — the site's own code + every recorded response, replayed offline | a copy that *works*: tabs, filters, lists, client-side transitions, motion, scroll |
 
-The freeze renders identical to the live site (it *is* its CSS); the rebuild is diffed against that freeze — offline and deterministic — so componentization can't silently break fidelity.
+The freeze renders identical to the live site (it *is* its CSS); the rebuild is diffed against that freeze — offline, deterministic — so componentization can't silently break fidelity; and the archive **runs the real JavaScript** against cached data, so every interaction behaves exactly as the original (a clicked tab swaps content, a filtered list updates — no reconstruction, because it *is* the behavior).
 
 ## Copied, five ways
 
@@ -262,6 +263,12 @@ node tools/uiforge-diff.mjs      <ref> <out> [--segments segment.json] [--json]
 node tools/uiforge-site.mjs      <start-url> --out-dir ./site [--max 6] [--assets] [--headed] [--profile dir]
       # clone a WHOLE site: crawl same-origin pages, capture each, stitch into ONE React-Router
       # project (a route per page, namespaced components, one shared @theme). The "one page" limit, gone.
+
+node tools/uiforge-archive.mjs   <url> --out-dir ./archive [--explore] [--headed] [--profile dir]
+      # the COMPLETE behavior clone: record the real code + every network response (incl. XHR/API),
+      # warmed by clicking in-page controls + scrolling → a folder + zero-dep replay server. Open it
+      # and the site's own JS runs offline against cached data: tabs, filters, lists, transitions WORK.
+      #   node ./archive/serve.mjs   → open the printed http://localhost URL
 ```
 
 ### Accessibility & craft QA (so the clone is better than a scrape)
@@ -306,14 +313,14 @@ Most of what used to be here is now handled (see the grid): exact JS animation, 
 scroll-linked motion, determinism on carousels, real videos, webfonts (even CORS-locked, via
 `--inline`), auth, Cloudflare, and whole-site crawl. The **honest residuals** that remain:
 
-- **JS-mounted SPA heroes on the *freeze***: the freeze strips scripts for determinism, so a
-  hero that a framework *mounts with JS* (openai.com's ChatGPT prompt) renders a different
-  static slide than the live view. The *rebuild* path (which reads the post-JS computed styles)
-  keeps it; the freeze doesn't. Time-freeze fixes carousels/rotators, not JS-mounted content.
-- **JS-driven scroll effects** (rAF reading `scrollY`, not the native CSS API): their **end
-  state** is captured via the scroll-through, but the scroll-scrubbed motion isn't replayed.
-- **Physics / particle** motion and **canvas** interaction: recorded to video, not re-simulated.
-- **"Idiomatic" is the last mile**: the rebuild is genuinely componentized and Tailwind-classed,
+- **Behavior lives in the *archive*, not the freeze/rebuild.** JS-mounted heroes (openai's
+  ChatGPT prompt), JS-driven scroll scrub, physics/particle motion, and any click-swaps-content
+  interaction are only fully reproduced by **`uiforge-archive`**, which runs the real code. The
+  freeze (scripts stripped) and the still rebuild capture the *state*, not the running logic.
+- **The archive's own residual**: a *server*-dependent action (a search that hits an API, a
+  "load more" that fetches) only works if that response was **recorded** — run `--explore` and
+  interact more to widen coverage; a request never made during capture has nothing to replay.
+- **"Idiomatic" is the last mile** (rebuild): it's genuinely componentized and Tailwind-classed,
   but mapping every arbitrary `[value]` to a design-token utility and naming components
   semantically is the `/clone` agent's polish step, not fully automatic.
 
