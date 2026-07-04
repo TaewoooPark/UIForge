@@ -50,14 +50,17 @@ async function fetchSheets(sheets) {
 // Render the target, settle it (scroll-through so reveals fire + lazy media loads, copied
 // from uiforge-capture), then grab the fully-rendered outerHTML plus the ordered list of
 // external stylesheet hrefs (carrying their media so print/responsive sheets stay scoped).
-async function freeze(target, viewport) {
+async function freeze(target, viewport, opts = {}) {
   const chromium = await loadChromium()
   if (!chromium) { console.error('\n  Playwright not found:  npm i -D playwright && npx playwright install chromium\n'); process.exit(3) }
   const url = /^https?:|^file:/.test(target) ? target : pathToFileURL(path.resolve(target)).href
-  const browser = await chromium.launch()
+  // --headed: a real browser with the automation fingerprint hidden, to clear the basic
+  // Cloudflare / bot JS challenge ("Just a moment…") that a headless browser trips.
+  const browser = await chromium.launch(opts.headed ? { headless: false, args: ['--disable-blink-features=AutomationControlled'] } : {})
   let snap
   try {
-    const page = await browser.newPage({ viewport })
+    const page = await browser.newPage({ viewport, ...(opts.headed ? { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' } : {}) })
+    if (opts.headed) await page.addInitScript(() => { Object.defineProperty(navigator, 'webdriver', { get: () => undefined }) })
     await page.emulateMedia({ reducedMotion: 'reduce' }).catch(() => {})
     await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => page.goto(url, { timeout: 30000 }).catch(() => {}))
     await page.waitForTimeout(700)
@@ -159,7 +162,7 @@ if (isMain) {
   const target = argv.find((a, idx) => !a.startsWith('--') && !valueIdx.has(idx))
   if (!target) { console.error('  no target given — pass a url or a .html file'); process.exit(1) }
 
-  const snap = await freeze(target, { width: vw, height: vh })
+  const snap = await freeze(target, { width: vw, height: vh }, { headed: argv.includes('--headed') })
   if (!snap || !snap.html) { console.error('  freeze failed: no document captured'); process.exit(2) }
   const sheets = await fetchSheets(snap.sheets || [])
   const { html, origin, linksRemoved, scriptsRemoved } = assemble(snap, sheets)

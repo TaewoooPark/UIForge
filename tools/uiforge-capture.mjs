@@ -276,9 +276,12 @@ async function capture(target, viewport, opts = {}) {
   const chromium = await loadChromium()
   if (!chromium) { console.error('\n  Playwright not found:  npm i -D playwright && npx playwright install chromium\n'); process.exit(3) }
   const url = /^https?:|^file:/.test(target) ? target : pathToFileURL(path.resolve(target)).href
-  const browser = await chromium.launch()
+  // --headed launches a real (non-headless) browser with the automation fingerprint hidden —
+  // this clears the basic Cloudflare / bot JS challenge that returns "Just a moment…" to headless.
+  const browser = await chromium.launch(opts.headed ? { headless: false, args: ['--disable-blink-features=AutomationControlled'] } : {})
   try {
-    const page = await browser.newPage({ viewport })
+    const page = await browser.newPage({ viewport, ...(opts.headed ? { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' } : {}) })
+    if (opts.headed) await page.addInitScript(() => { Object.defineProperty(navigator, 'webdriver', { get: () => undefined }) })
     // A stray toggle click can pop an alert()/confirm()/beforeunload — that would BLOCK the page
     // and hang the exploration evaluate forever. Auto-dismiss so interaction probing stays safe.
     page.on('dialog', d => d.dismiss().catch(() => {}))
@@ -625,6 +628,7 @@ if (isMain) {
   type scale, spacing, radii, shadows, fonts). The raw material for reconstruction.
   --record-canvas  records each <canvas> to a looping .webm (canvas/WebGL heroes).
   --sample-motion  samples JS-driven motion (Framer/GSAP/rAF) → looping @keyframes.
+  --headed         launch a real (visible) browser to clear Cloudflare/bot JS walls.
   --responsive     also captures a mobile viewport → per-node responsive (max-sm:) diffs
                    + reconciles two reads to surface A/B / animated drift (coverage.stability).
 `)
@@ -638,8 +642,9 @@ if (isMain) {
   const recordCanvas = argv.includes('--record-canvas')
   const sampleMotion = argv.includes('--sample-motion')
   const responsive = argv.includes('--responsive')
+  const headed = argv.includes('--headed')
 
-  const snap = await capture(target, { width: vw, height: vh }, { recordCanvas, sampleMotion, responsive })
+  const snap = await capture(target, { width: vw, height: vh }, { recordCanvas, sampleMotion, responsive, headed })
   const tokens = tokenize(snap.nodes)
   // write any recorded canvas clips next to the capture, and point the node at its file
   const byId = new Map(snap.nodes.map(n => [n.i, n]))
