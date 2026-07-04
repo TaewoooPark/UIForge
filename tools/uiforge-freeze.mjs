@@ -151,6 +151,37 @@ function assemble(snap, sheets) {
   return { html, origin, linksRemoved, scriptsRemoved }
 }
 
+// --inline: embed every referenced font/image/background as a data: URI, server-side (no CORS —
+// so even CORS-locked webfonts come across), producing a TRULY self-contained single .html that
+// renders offline. Each fetch is hard-bounded so one slow asset can't stall the run.
+async function inlineAssets(html, base) {
+  const PER = 8000, MAX = 6 * 1024 * 1024, cache = new Map()
+  const absOf = u => { try { return new URL(u, base).href } catch { return u } }
+  const grab = async u => {
+    if (/^data:/.test(u)) return null
+    const a = absOf(u); if (cache.has(a)) return cache.get(a)
+    const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), PER)
+    let out = null
+    try {
+      const r = await fetch(a, { redirect: 'follow', signal: ctrl.signal })
+      if (r.ok) { const buf = Buffer.from(await r.arrayBuffer())
+        if (buf.length && buf.length <= MAX) out = `data:${(r.headers.get('content-type') || 'application/octet-stream').split(';')[0]};base64,${buf.toString('base64')}` }
+    } catch {} finally { clearTimeout(t) }
+    cache.set(a, out); return out
+  }
+  const urls = new Set()
+  for (const m of html.matchAll(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g)) if (!/^data:/.test(m[2])) urls.add(m[2])
+  for (const m of html.matchAll(/<img\b[^>]*?\ssrc=(['"])([^'"]+)\1/gi)) if (!/^data:/.test(m[2])) urls.add(m[2])
+  const list = [...urls].slice(0, 500), map = new Map(), CONC = 8
+  for (let i = 0; i < list.length; i += CONC) {
+    const batch = list.slice(i, i + CONC), got = await Promise.all(batch.map(grab))
+    got.forEach((d, j) => { if (d) map.set(batch[j], d) })
+  }
+  let out = html.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (m, _q, u) => { const d = map.get(u); return d ? `url("${d}")` : m })
+  out = out.replace(/(<img\b[^>]*?\ssrc=)(['"])([^'"]+)\2/gi, (m, pre, q, u) => { const d = map.get(u); return d ? `${pre}${q}${d}${q}` : m })
+  return { html: out, embedded: map.size, referenced: urls.size }
+}
+
 /* --------------------------------- CLI --------------------------------- */
 const isMain = import.meta.url === pathToFileURL(process.argv[1] || '').href
 if (isMain) {
@@ -159,8 +190,11 @@ if (isMain) {
     console.log(`
   uiforge-freeze — the faithful, offline ORACLE (real CSS, frozen DOM, no scripts).
 
-  node uiforge-freeze.mjs <url│file.html> [--out freeze.html] [--viewport 1440x900]
+  node uiforge-freeze.mjs <url│file.html> [--out freeze.html] [--viewport 1440x900] [--inline]
                           [--shot ref.png] [--full-shot ref-full.png] [--headed] [--profile dir] [--live-timers]
+
+  --inline embeds every font/image/background as a data: URI (server-side, past CORS) → a
+           TRULY self-contained single file that renders offline, real webfonts and all.
 
   Keeps the site's REAL stylesheets + fully-rendered DOM — unlike uiforge-reconstruct,
   which re-derives every style from computed values and drifts (collapse, empty boxes).
@@ -184,7 +218,9 @@ if (isMain) {
   })
   if (!snap || !snap.html) { console.error('  freeze failed: no document captured'); process.exit(2) }
   const sheets = await fetchSheets(snap.sheets || [])
-  const { html, origin, linksRemoved, scriptsRemoved } = assemble(snap, sheets)
+  let { html, origin, linksRemoved, scriptsRemoved } = assemble(snap, sheets)
+  let inlined = null
+  if (argv.includes('--inline')) { const r = await inlineAssets(html, origin || snap.href); html = r.html; inlined = r }
   writeFileSync(outPath, html)
 
   const okSheets = sheets.filter(s => s.ok && s.css).length
@@ -193,6 +229,7 @@ if (isMain) {
   console.log(`\n  ${B}UIForge freeze${X} ${D}← ${target}${X}`)
   console.log(`    ${C}stylesheets${X} ${okSheets} inlined${failSheets ? ` ${Y}(${failSheets} failed)${X}` : ''} · ${C}base${X} ${origin || '—'}`)
   console.log(`    ${C}stripped${X}    ${linksRemoved} <link> · ${scriptsRemoved} <script>  ${D}@ ${vw}×${vh}${X}`)
+  if (inlined) console.log(`    ${C}inlined${X}     ${G}${inlined.embedded}${X}/${inlined.referenced} assets as data URIs ${D}— single-file, offline${X}`)
   console.log(`\n  ${G}→ ${outPath}${X} ${D}(${(html.length / 1024).toFixed(0)} KB)${X}\n`)
 }
 
