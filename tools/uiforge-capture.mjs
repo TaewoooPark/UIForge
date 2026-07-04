@@ -310,17 +310,50 @@ async function extractWaapi(page) {
   })
 }
 
+/* --------------------- robust launch (headed / profile / channel) --------------------- */
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+// Returns { page, close }. --profile persists cookies (a passed cf_clearance is REUSED next run);
+// --headed / --profile run a real browser with the automation fingerprint hidden; both try the
+// real Chrome channel first (passes more bot checks) and fall back to bundled Chromium.
+export async function launchFor(chromium, viewport, opts = {}) {
+  const headed = !!(opts.headed || opts.profile)
+  const base = { headless: !headed, args: headed ? ['--disable-blink-features=AutomationControlled'] : [] }
+  const ctx = { viewport, ...(headed ? { userAgent: UA } : {}) }
+  let browser, context, page
+  if (opts.profile) {
+    try { context = await chromium.launchPersistentContext(opts.profile, { ...base, ...ctx, channel: 'chrome' }) }
+    catch { context = await chromium.launchPersistentContext(opts.profile, { ...base, ...ctx }) }
+    page = context.pages()[0] || await context.newPage(); if (viewport) await page.setViewportSize(viewport).catch(() => {})
+  } else if (headed) {
+    try { browser = await chromium.launch({ ...base, channel: 'chrome' }) } catch { browser = await chromium.launch(base) }
+    context = await browser.newContext(ctx); page = await context.newPage()
+  } else {
+    browser = await chromium.launch(base); page = await browser.newPage(ctx)
+  }
+  if (headed) await page.addInitScript(() => { Object.defineProperty(navigator, 'webdriver', { get: () => undefined }) })
+  return { page, close: async () => { try { if (browser) await browser.close(); else if (context) await context.close() } catch {} } }
+}
+// Cloudflare / bot managed challenges clear themselves for a real browser after a moment — so we
+// navigate, then POLL for the interstitial to disappear (title / #challenge-form), up to ~20s.
+export async function challengeGoto(page, url, waitUntil = 'networkidle') {
+  await page.goto(url, { waitUntil, timeout: 45000 }).catch(() => page.goto(url, { timeout: 45000 }).catch(() => {}))
+  for (let i = 0; i < 9; i++) {
+    const t = await page.title().catch(() => '')
+    const wall = /just a moment|checking your browser|attention required|verify (you are|that you are) human|один момент/i.test(t)
+      || await page.$('#challenge-form, #cf-challenge-running, iframe[src*="challenges.cloudflare"]').then(Boolean).catch(() => false)
+    if (!wall) return true
+    await page.waitForTimeout(2500)
+  }
+  return false
+}
+
 /* ------------------------------- harness ------------------------------- */
 async function capture(target, viewport, opts = {}) {
   const chromium = await loadChromium()
   if (!chromium) { console.error('\n  Playwright not found:  npm i -D playwright && npx playwright install chromium\n'); process.exit(3) }
   const url = /^https?:|^file:/.test(target) ? target : pathToFileURL(path.resolve(target)).href
-  // --headed launches a real (non-headless) browser with the automation fingerprint hidden —
-  // this clears the basic Cloudflare / bot JS challenge that returns "Just a moment…" to headless.
-  const browser = await chromium.launch(opts.headed ? { headless: false, args: ['--disable-blink-features=AutomationControlled'] } : {})
+  const { page, close } = await launchFor(chromium, viewport, opts)
   try {
-    const page = await browser.newPage({ viewport, ...(opts.headed ? { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' } : {}) })
-    if (opts.headed) await page.addInitScript(() => { Object.defineProperty(navigator, 'webdriver', { get: () => undefined }) })
     // Record EVERY WAAPI animation the page creates — including one-shot entrances that finish
     // (and disappear from getAnimations()) before we ever snapshot. Framer Motion, Motion One,
     // and modern libraries all drive through Element.animate(); hooking it lets us extract the
@@ -338,7 +371,7 @@ async function capture(target, viewport, opts = {}) {
     // and toggle probing, then is PAUSED for the geometry snapshot (carousels/rotators frozen)
     // and resumed for the phases that need real time (canvas recording, motion sampling).
     await page.clock.install().catch(() => {})
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => page.goto(url, { timeout: 30000 }).catch(() => {}))
+    await challengeGoto(page, url)
     await page.waitForTimeout(700)
     // Scroll the whole page so IntersectionObserver reveals fire and lazy media loads —
     // otherwise below-fold sections are captured in their initial hidden state (opacity:0,
@@ -468,7 +501,7 @@ async function capture(target, viewport, opts = {}) {
         if (snap.coverage) snap.coverage.responsive = { nodesWithOverrides: respCount, mobileViewport: '390x844' }
       } catch {}
     }
-  } finally { await browser.close() }
+  } finally { await close() }
   return snap
 }
 
@@ -701,6 +734,8 @@ if (isMain) {
   --record-canvas  records each <canvas> to a looping .webm (canvas/WebGL heroes).
   --sample-motion  samples JS-driven motion (Framer/GSAP/rAF) → looping @keyframes.
   --headed         launch a real (visible) browser to clear Cloudflare/bot JS walls.
+  --profile <dir>  persist that browser's cookies (a passed cf_clearance is REUSED next run);
+                   implies --headed, tries the real Chrome channel, and waits out the challenge.
   --responsive     also captures a mobile viewport → per-node responsive (max-sm:) diffs
                    + reconciles two reads to surface A/B / animated drift (coverage.stability).
 `)
@@ -709,14 +744,15 @@ if (isMain) {
   const valAt = n => { const i = argv.indexOf(n); return i >= 0 && argv[i + 1] ? argv[i + 1] : null }
   const [vw, vh] = (valAt('--viewport') || '1440x900').split('x').map(Number)
   const outPath = valAt('--out') || 'capture.json'
-  const valueIdx = new Set(); for (const nm of ['--out', '--viewport']) { const i = argv.indexOf(nm); if (i >= 0) valueIdx.add(i + 1) }
+  const valueIdx = new Set(); for (const nm of ['--out', '--viewport', '--profile']) { const i = argv.indexOf(nm); if (i >= 0) valueIdx.add(i + 1) }
   const target = argv.find((a, idx) => !a.startsWith('--') && !valueIdx.has(idx))
   const recordCanvas = argv.includes('--record-canvas')
   const sampleMotion = argv.includes('--sample-motion')
   const responsive = argv.includes('--responsive')
   const headed = argv.includes('--headed')
+  const profile = valAt('--profile')
 
-  const snap = await capture(target, { width: vw, height: vh }, { recordCanvas, sampleMotion, responsive, headed })
+  const snap = await capture(target, { width: vw, height: vh }, { recordCanvas, sampleMotion, responsive, headed, profile })
   const tokens = tokenize(snap.nodes)
   // write any recorded canvas clips next to the capture, and point the node at its file
   const byId = new Map(snap.nodes.map(n => [n.i, n]))

@@ -17,7 +17,7 @@ import process from 'node:process'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { writeFileSync } from 'node:fs'
-import { loadChromium } from './uiforge-capture.mjs'
+import { loadChromium, launchFor, challengeGoto } from './uiforge-capture.mjs'
 
 const attrEsc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
 
@@ -54,20 +54,18 @@ async function freeze(target, viewport, opts = {}) {
   const chromium = await loadChromium()
   if (!chromium) { console.error('\n  Playwright not found:  npm i -D playwright && npx playwright install chromium\n'); process.exit(3) }
   const url = /^https?:|^file:/.test(target) ? target : pathToFileURL(path.resolve(target)).href
-  // --headed: a real browser with the automation fingerprint hidden, to clear the basic
-  // Cloudflare / bot JS challenge ("Just a moment…") that a headless browser trips.
-  const browser = await chromium.launch(opts.headed ? { headless: false, args: ['--disable-blink-features=AutomationControlled'] } : {})
+  // Robust launch: --headed/--profile run a real browser (automation fingerprint hidden, Chrome
+  // channel, persistent cf_clearance) so a Cloudflare/bot wall clears and STAYS cleared next run.
+  const { page, close } = await launchFor(chromium, viewport, opts)
   let snap
   try {
-    const page = await browser.newPage({ viewport, ...(opts.headed ? { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' } : {}) })
-    if (opts.headed) await page.addInitScript(() => { Object.defineProperty(navigator, 'webdriver', { get: () => undefined }) })
     await page.emulateMedia({ reducedMotion: 'reduce' }).catch(() => {})
     // Install a controllable clock BEFORE navigation (it must hook timers at init). Time flows
     // normally through load + settle, then we PAUSE it at the snapshot instant — so carousels,
     // rotating heroes, and any setInterval-driven content stop dead. This is what makes the
     // freeze deterministic on JS-personalized pages (openai-style "different slide per look").
     if (!opts.liveTimers) await page.clock.install().catch(() => {})
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 }).catch(() => page.goto(url, { timeout: 30000 }).catch(() => {}))
+    await challengeGoto(page, url)
     await page.waitForTimeout(700)
     // Scroll the whole page top→bottom→top so IntersectionObserver reveals fire and lazy
     // media loads — otherwise below-fold sections freeze in their initial hidden state
@@ -104,7 +102,7 @@ async function freeze(target, viewport, opts = {}) {
       }
       return { sheets, html: document.documentElement.outerHTML, href: location.href, origin: location.origin }
     })
-  } finally { await browser.close() }
+  } finally { await close() }
   return snap
 }
 
@@ -162,7 +160,7 @@ if (isMain) {
   uiforge-freeze — the faithful, offline ORACLE (real CSS, frozen DOM, no scripts).
 
   node uiforge-freeze.mjs <url│file.html> [--out freeze.html] [--viewport 1440x900]
-                          [--shot ref.png] [--full-shot ref-full.png] [--headed] [--live-timers]
+                          [--shot ref.png] [--full-shot ref-full.png] [--headed] [--profile dir] [--live-timers]
 
   Keeps the site's REAL stylesheets + fully-rendered DOM — unlike uiforge-reconstruct,
   which re-derives every style from computed values and drifts (collapse, empty boxes).
@@ -176,13 +174,13 @@ if (isMain) {
   const valAt = n => { const i = argv.indexOf(n); return i >= 0 && argv[i + 1] ? argv[i + 1] : null }
   const [vw, vh] = (valAt('--viewport') || '1440x900').split('x').map(Number)
   const outPath = valAt('--out') || 'freeze.html'
-  const valueIdx = new Set(); for (const nm of ['--out', '--viewport', '--shot', '--full-shot']) { const i = argv.indexOf(nm); if (i >= 0) valueIdx.add(i + 1) }
+  const valueIdx = new Set(); for (const nm of ['--out', '--viewport', '--shot', '--full-shot', '--profile']) { const i = argv.indexOf(nm); if (i >= 0) valueIdx.add(i + 1) }
   const target = argv.find((a, idx) => !a.startsWith('--') && !valueIdx.has(idx))
   if (!target) { console.error('  no target given — pass a url or a .html file'); process.exit(1) }
 
   const snap = await freeze(target, { width: vw, height: vh }, {
     headed: argv.includes('--headed'), liveTimers: argv.includes('--live-timers'),
-    shot: valAt('--shot'), fullShot: valAt('--full-shot'),
+    shot: valAt('--shot'), fullShot: valAt('--full-shot'), profile: valAt('--profile'),
   })
   if (!snap || !snap.html) { console.error('  freeze failed: no document captured'); process.exit(2) }
   const sheets = await fetchSheets(snap.sheets || [])
