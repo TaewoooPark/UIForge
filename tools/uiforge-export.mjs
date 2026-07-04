@@ -58,6 +58,9 @@ const themePath = valAt('--theme')
 const themeJsonPath = valAt('--theme-json')
 const isFlat = argv.includes('--flat')
 const withAssets = argv.includes('--assets')
+// --prefix namespaces the generated uif-* classes / @keyframes / ids so N page components can
+// share one bundle without .uif-<i> collisions (used by uiforge-site's multi-page router).
+const PFX = valAt('--prefix') || ''
 const valueIdx = new Set(); for (const nm of ['--out-dir', '--theme', '--theme-json']) { const i = argv.indexOf(nm); if (i >= 0) valueIdx.add(i + 1) }
 const capPath = argv.find((a, idx) => !a.startsWith('--') && !valueIdx.has(idx))
 const cap = JSON.parse(readFileSync(capPath, 'utf8'))
@@ -76,7 +79,7 @@ function inlineDecls(style) {
 
 // the `animation` shorthand for a node's motion — exact WAAPI timing when captured, else a loop.
 function animShorthand(n) {
-  const m = n.motion, name = `uif-js-${n.i}`
+  const m = n.motion, name = `${PFX}uif-js-${n.i}`
   if (m.scroll) return `${name} auto linear both`
   if (!m.exact) return `${name} ${m.dur}s linear infinite`
   return `${name} ${m.dur}s ${m.ease || 'linear'} ${m.delay || 0}s ${m.iter || 1} ${m.dir || ''} ${m.fill || 'both'}`.replace(/\s+/g, ' ').trim()
@@ -89,11 +92,11 @@ function motionInteractionCss() {
   const imp = d => d.split(';').map(x => x.trim()).filter(Boolean).map(x => x + ' !important').join(';')
   let interCSS = ''
   for (const n of nodes) {
-    if (n.hover) interCSS += `.uif-${n.i}:hover{${imp(n.hover)}}\n`
-    if (n.focus) interCSS += `.uif-${n.i}:focus-visible{${imp(n.focus)}}\n`
-    if (n.active) interCSS += `.uif-${n.i}:active{${imp(n.active)}}\n`
+    if (n.hover) interCSS += `.${PFX}uif-${n.i}:hover{${imp(n.hover)}}\n`
+    if (n.focus) interCSS += `.${PFX}uif-${n.i}:focus-visible{${imp(n.focus)}}\n`
+    if (n.active) interCSS += `.${PFX}uif-${n.i}:active{${imp(n.active)}}\n`
   }
-  const jsKf = nodes.filter(n => n.motion).map(n => `@keyframes uif-js-${n.i}{${n.motion.kf}}`).join('\n')
+  const jsKf = nodes.filter(n => n.motion).map(n => `@keyframes ${PFX}uif-js-${n.i}{${n.motion.kf}}`).join('\n')
   return '\n\n' + (cap.fontFaces || []).join('\n') + '\n' + (cap.keyframes || []).join('\n') + '\n' + jsKf + '\n' + interCSS
 }
 
@@ -106,7 +109,7 @@ function discloseRuntime() {
   const effect = `  useEffect(() => {
     const M = ${JSON.stringify(openMap)}
     const h = e => { const t = e.target.closest('[data-uif-tog]'); if (!t) return; e.preventDefault()
-      const id = t.getAttribute('data-uif-tog'), p = document.getElementById('uif-t-' + id); if (!p) return
+      const id = t.getAttribute('data-uif-tog'), p = document.getElementById('${PFX}uif-t-' + id); if (!p) return
       const on = p.dataset.uifOn === '1'; p.dataset.uifOn = on ? '0' : '1'; t.setAttribute('aria-expanded', String(!on))
       const s = M[id] || {}; for (const k in s) p.style[k] = on ? '' : s[k] }
     document.addEventListener('click', h); return () => document.removeEventListener('click', h)
@@ -155,10 +158,10 @@ function flatJSX(n, d) {
   if (n.svgHTML) return `<div style=${flatStyleObj(n)} dangerouslySetInnerHTML={{ __html: ${q(n.svgHTML)} }} />`
   const tag = /^[a-z][a-z0-9]*$/.test(n.tag) && !SVGTAG.test(n.tag) ? n.tag : 'div'
   let a = `<${tag} style=${flatStyleObj(n)}`
-  const cls = [n.cls, (n.hover || n.focus || n.active) ? `uif-${n.i}` : ''].filter(Boolean).join(' ')
+  const cls = [n.cls, (n.hover || n.focus || n.active) ? `${PFX}uif-${n.i}` : ''].filter(Boolean).join(' ')
   if (cls) a += ` className=${q(cls)}`
   if (n.toggleTarget != null) a += ` data-uif-tog=${q(String(n.toggleTarget))}`
-  if (n.open) a += ` id=${q('uif-t-' + n.i)}`
+  if (n.open) a += ` id=${q(PFX + 'uif-t-' + n.i)}`
   if (n.href) a += ` href=${q(n.href)}`
   if (tag === 'img') a += ` src=${q(n.src || '')} alt=${q(n.alt || '')} width={${n.w}} height={${n.h}}`
   if (VOID.has(tag)) return a + ' />'
@@ -337,7 +340,7 @@ function buildComponentized() {
     if (className) a += ` className=${q(className)}`
     if (style) a += ` style=${style}`
     if (!rep && n.toggleTarget != null) a += ` data-uif-tog=${q(String(n.toggleTarget))}`   // ids are per-node; dropped inside repeats to avoid duplicates
-    if (!rep && n.open) a += ` id=${q('uif-t-' + n.i)}`
+    if (!rep && n.open) a += ` id=${q(PFX + 'uif-t-' + n.i)}`
     if (n.href != null) { const hp = propAt(ctx, p, 'href'); a += ` href=${hp ? `{d.${hp}}` : q(n.href)}` }
     if (tag === 'img') {
       const sp = propAt(ctx, p, 'src'), ap = propAt(ctx, p, 'alt')
