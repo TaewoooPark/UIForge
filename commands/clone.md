@@ -1,13 +1,15 @@
 ---
-description: Clone a website three ways — a working behavior ARCHIVE (its real code + data replayed offline; tabs, filters, lists, transitions all work), an editable React REBUILD (clean components + your content), or a pixel-faithful FREEZE. Archive is the flagship: it reproduces how the site actually behaves, not just how it looks.
-argument-hint: "<url│file.html> [--archive] [--react] [--content path.md] [--explore] [--headed] [--profile dir]"
+description: Clone a website — a working behavior ARCHIVE (real code + data replayed offline; tabs, filters, transitions work), a pixel-identical editable RESTORE (real source recovered from source maps when shipped, else the real DOM componentized into React with classes kept byte-exact — verified by pixel-diff), or a pixel-faithful FREEZE. All from the archive, offline.
+argument-hint: "<url│file.html> [--archive] [--restore] [--content path.md] [--explore] [--headed] [--profile dir]"
 ---
 
 Clone the reference in **$ARGUMENTS**. Pick the mode from the flags and the user's words:
 
 - **`--archive`**, or the user asks for a copy that **works / behaves / is interactive** (tabs, filters, lists, click-to-swap, "동작까지", "실제로 작동") → **Archive** (§A, the flagship).
-- **`--react`**, or the user wants **editable / componentized / their content** → **Rebuild** (§B).
+- **`--restore`** / **`--react`**, or the user wants **editable / componentized source / their content** → **Restore** (§B) — pixel-identical editable source *from the archive*.
 - otherwise, or **`--freeze`** → **Freeze** (§C).
+
+Archive first (§A) whenever a Restore is wanted — the Restore consumes the archive, it never re-visits the live site.
 
 Let `ROOT` = `${CLAUDE_PLUGIN_ROOT}`. Before any `node` command, set `export NODE_PATH="$(npm root -g)"` so Playwright resolves. Work in a fresh output dir. `--headed`/`--profile <dir>` pass through to reach a site behind Cloudflare or a login (a persistent `--profile` reuses the clearance/session). `file://` inputs work too.
 
@@ -34,21 +36,29 @@ node ./clone-archive/serve.mjs      # → http://localhost:8787
 
 ---
 
-## §B · Rebuild — clean, editable React + Tailwind (with your content)
+## §B · Restore — archive → editable source, pixel-identical (tiered)  ⭐
 
-A componentized Vite + React + Tailwind v4 project you can edit and ship — **new** code generated from the *rendered* result, not the site's minified bundles.
+Turn the **archive** (never the live site) into editable source that renders **pixel-identical to the original** — by *preservation*, not reconstruction. Best-fidelity tier first, always proven by a pixel gate. (This replaces the old lossy "re-derive styles from computed values" rebuild, which drifted.)
 
 ```bash
-node $ROOT/tools/uiforge-freeze.mjs   <ref> --out ./clone/freeze.html          # the fidelity oracle
-node $ROOT/tools/uiforge-capture.mjs  <ref> --out ./clone/capture.json [--sample-motion] [--responsive]
-node $ROOT/tools/uiforge-theme.mjs    ./clone/capture.json --out-css ./clone/theme.css --out-json ./clone/theme.json
-node $ROOT/tools/uiforge-export.mjs   ./clone/capture.json --out-dir ./clone/app --theme-json ./clone/theme.json --assets
+# 0 · detect the stack from the archive (drives output idiom + which tier applies)
+node $ROOT/tools/uiforge-detect.mjs    ./clone-archive
+
+# TIER A · real ORIGINAL source — when the site shipped or leaked source maps (highest fidelity)
+node $ROOT/tools/uiforge-sourcemap.mjs ./clone-archive --out-dir ./restore/src-recovered
+
+# TIER B · always works — pixel-identical editable React from the real rendered DOM
+node $ROOT/tools/uiforge-restore.mjs   ./clone-archive --out-dir ./restore
+
+# GATE · prove it, don't hope it
+node $ROOT/tools/uiforge-visualgate.mjs --a ./restore --b ./clone/ref.png
 ```
 
-- The export is componentized by default (sections + repeated blocks → components, styles → Tailwind classes, content → `content.ts`); `--assets` makes it self-contained.
-- **Gate on the freeze, not the live site**: `node $ROOT/tools/uiforge-diff.mjs ./clone/freeze.html <the built clone> --segments ./clone/segment.json` — read the **per-section** scores and fix the worst sections. Offline + deterministic.
-- If `--content <md>` is given, replace the reference's copy/images with the user's, keeping components, tokens, and layout. Drop sections with no matching content; reuse the nearest component for extra content.
-- For a **whole site** (many pages), use `node $ROOT/tools/uiforge-site.mjs <start-url> --out-dir ./clone-site --max 6 --assets` → one React-Router project.
+- **Try Tier A first.** If `uiforge-sourcemap` recovers app files, you have the site's **real components** — original names, comments, types, `src/` paths (it even recovers the exact `MobileMenu.tsx` a static render can't reproduce). Many sites strip maps; it says so and you fall back to Tier B. ⚠ recovered proprietary source is for study/redesign, not wholesale re-publishing.
+- **Tier B always yields a buildable, pixel-identical project**: `cd ./restore && npm install && npm run dev`. It loads the archive's real DOM, keeps every class **byte-exact**, and ships the site's **real compiled CSS + real assets** — so fidelity is the *default*, not a target chased with an LLM. It self-completes assets the archive lazily skipped; `--no-fetch` stays fully offline.
+- **Always gate.** Read the mismatch %: static / marketing / docs sites (e.g. shadcn) hit **~0% — pixel-identical**; a WebGL canvas hero or JS-state-driven UI has honest limits — and those are exactly the components Tier A recovers as source. The worst-region bbox tells you where to look.
+- **`--content <md>`**: after Tier B, swap the reference's copy/images for the user's, keeping structure, classes, and assets.
+- **Tier C — reference only** (no maps, but you need to read the site's logic): `node $ROOT/tools/uiforge-debundle.mjs ./clone-archive --out-dir ./reference` → readable, **not** faithful (names/types erased). Real source is Tier A; behavior is the Archive.
 
 ---
 

@@ -1,7 +1,7 @@
 <h1 align="center">🔨 UIForge</h1>
 
 <p align="center">
-  <strong>Clone a website so it actually <em>works</em> — tabs, filters, lists, client-side transitions, motion, scroll — then also as a pixel-faithful <em>freeze</em> and an editable React <em>rebuild</em>.</strong><br>
+  <strong>Clone a website so it actually <em>works</em> — tabs, filters, lists, client-side transitions, motion, scroll — then also as a pixel-faithful <em>freeze</em> and a pixel-identical, editable React <em>restore</em>.</strong><br>
   <em>Point it at a site. UIForge's flagship is the <b>Archive</b>: it records the site's real code + every network response and replays them offline, so the <b>original JavaScript runs against its own cached data</b> — click a tab and content swaps, filter a list and it updates, exactly as the original, because it <b>is</b> the behavior. It also makes a pixel-faithful <b>Freeze</b> (real CSS/fonts kept) and a clean componentized React + Tailwind <b>Rebuild</b> with <b>your</b> content — capturing webfonts, exact animation curves, hover/dropdowns, real videos, and reaching sites behind Cloudflare or a login.</em>
 </p>
 
@@ -48,9 +48,27 @@ Most tools give you a still. UIForge gives you the **behavior** first, then the 
 |---|---|---|
 | **⭐ Archive** (`uiforge-archive`) | the **complete behavior** — the site's own code + every recorded response, replayed offline from a **browsable, editable mirror** (real files, real filenames — not opaque blobs) | a copy that **works**: tabs, filters, lists, client-side transitions, motion, scroll |
 | **Freeze** (`uiforge-freeze`) | a self-contained, **pixel-faithful** still — real CSS/fonts/assets kept, scripts stripped, time frozen | an exact offline still — and the **oracle** the rebuild is measured against |
-| **Rebuild** (`uiforge-export`) | a **clean, componentized** Vite + React + Tailwind project — components, Tailwind classes, content externalized | building on the design, editing, shipping with **your** content |
+| **Restore** (`uiforge-restore` · `-sourcemap`) | editable source that renders **pixel-identical** — the real DOM componentized into React with classes kept **byte-exact**, or the site's **real original source** recovered when it shipped source maps | editing, developing, shipping with **your** content — without the fidelity drift |
 
-The **archive runs the real JavaScript** against cached data, so every interaction behaves exactly as the original — no reconstruction, because it *is* the behavior. (This is why it beats "Save As": a naive save of a modern app never records the XHR/API data the app fetches, so it opens as a broken shell — the archive records *and replays* that data.) The freeze renders identical to the live site (it *is* its CSS); the rebuild is diffed against that freeze — offline, deterministic — so componentization can't silently break fidelity.
+The **archive runs the real JavaScript** against cached data, so every interaction behaves exactly as the original — no reconstruction, because it *is* the behavior. (This is why it beats "Save As": a naive save of a modern app never records the XHR/API data the app fetches, so it opens as a broken shell — the archive records *and replays* that data.) The freeze renders identical to the live site (it *is* its CSS); the **restore keeps the real DOM + real CSS, so it's pixel-identical *by construction*** — verified: ui.shadcn.com restores to **0.00% pixel difference** — and where a site ships source maps it recovers the **actual original `.tsx`**.
+
+---
+
+## Restore it into editable code — that renders *pixel-identical*
+
+Point **Restore** at the archive and get an editable **React project that renders exactly like the original** — because it keeps the real DOM, the real class strings (byte-for-byte), and the real compiled CSS. Fidelity is the *default*, not something chased with an LLM. Every result is **proven** by an offline pixel-gate against the freeze:
+
+| site | restored as | pixel diff vs the original |
+|---|---|---|
+| **ui.shadcn.com** | React, classes kept verbatim | **0.00% — pixel-identical** |
+| **vercel.com** | ″ | 1.8% *(only the WebGL canvas hero — it needs JS)* |
+| **linear.app** | ″ | 5% *(a JS-state menu — recovered as real source by Tier A ↓)* |
+
+And when a site **ships or leaks source maps**, the top tier recovers its **actual original source** — real `.tsx` with the original names, comments, and types. linear.app → **421 real source files**, including the exact `MobileMenu.tsx` (with its `useState` open-logic) that a static render can't reproduce. Two tiers, best-first, everything from the archive — offline:
+
+```
+/uiforge:clone ui.shadcn.com --restore
+```
 
 ---
 
@@ -123,13 +141,13 @@ Or locally: `git clone https://github.com/TaewoooPark/UIForge.git && claude --pl
 ## The command — one command, three modes
 
 ```
-/uiforge:clone <url│file.html> [--archive] [--react] [--content path.md] [--explore] [--headed] [--profile dir]
+/uiforge:clone <url│file.html> [--archive] [--restore] [--content path.md] [--explore] [--headed] [--profile dir]
 ```
 
 | you want… | say | what it does |
 |---|---|---|
 | a copy that **works / behaves** | `--archive`, or *"clone it so it actually works"* | ⭐ records the real code + data → an offline **replay** where tabs/filters/lists/transitions work |
-| **editable** React with **your** content | `--react`, or *"…for my product (product.md)"* | a clean componentized React + Tailwind **rebuild** |
+| **editable** source, **pixel-identical** | `--restore` (or `--react`), or *"…for my product (product.md)"* | real DOM → React with classes byte-exact + real source recovered from source maps — proven by pixel-gate |
 | a **pixel-faithful** still | *(default)* / `--freeze` | a self-contained **freeze** |
 
 Or just say it — the agent picks the mode:
