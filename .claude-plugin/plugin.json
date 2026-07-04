@@ -1,6 +1,6 @@
 {
   "name": "uiforge",
-  "version": "3.49.0",
+  "version": "3.50.0",
   "description": "Clone any website's design into clean, editable React + Tailwind, with your content. Renders a reference, extracts its full design (every color, gradient, shadow, font, box) into a Tailwind v4 theme, replays a faithful reconstruction, loops a visual diff against the original until it matches, then exports an editable Vite+React project — accessible where the original isn't.",
   "author": {
     "name": "Taewoo Park"

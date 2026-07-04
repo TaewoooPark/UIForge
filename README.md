@@ -1,8 +1,8 @@
 <h1 align="center">🔨 UIForge</h1>
 
 <p align="center">
-  <strong>Clone any website — design, <em>motion</em>, and <em>interaction</em> — two ways: a pixel-faithful <em>freeze</em> and a clean, componentized React + Tailwind <em>rebuild</em>.</strong><br>
-  <em>Point it at a site. UIForge <b>freezes</b> it into a self-contained, pixel-faithful replica (its real CSS, fonts, and assets kept) — the offline oracle — and <b>rebuilds</b> it into an editable Vite + React + Tailwind project: sections and repeated blocks as real components, styles as Tailwind classes, content externalized, verified against the freeze. It captures the webfonts, CSS animations, hover states, and dropdowns, records canvas/WebGL heroes to video, samples JS motion, and reaches sites behind Cloudflare — then populates it with <b>your</b> content.</em>
+  <strong>Clone a website so it actually <em>works</em> — tabs, filters, lists, client-side transitions, motion, scroll — then also as a pixel-faithful <em>freeze</em> and an editable React <em>rebuild</em>.</strong><br>
+  <em>Point it at a site. UIForge's flagship is the <b>Archive</b>: it records the site's real code + every network response and replays them offline, so the <b>original JavaScript runs against its own cached data</b> — click a tab and content swaps, filter a list and it updates, exactly as the original, because it <b>is</b> the behavior. It also makes a pixel-faithful <b>Freeze</b> (real CSS/fonts kept) and a clean componentized React + Tailwind <b>Rebuild</b> with <b>your</b> content — capturing webfonts, exact animation curves, hover/dropdowns, real videos, and reaching sites behind Cloudflare or a login.</em>
 </p>
 
 <p align="center">
@@ -23,23 +23,28 @@
 </p>
 
 <p align="center">
-  <img src="./docs/clone-linear.png?v=3230" alt="UIForge clone of linear.app, reproduced from the capture alone: the live site and the reconstruction side by side at the same scroll position — the same nav, the same headline in Linear's own Inter Variable webfont, the same copy." width="100%">
+  <img src="./docs/archive-behavior.gif?v=3490" alt="An offline archive of vercel.com replaying: clicking Pricing performs a real client-side transition, content swapping with no reload, driven by the site's own JavaScript against cached data." width="100%">
 </p>
-<p align="center"><sub><em><b>linear.app, reproduced from the capture alone</b> — no hand-authoring, both panels at the same scroll. <code>capture → reconstruct</code> replays every element's exact styles, geometry, text, and SVGs, and re-declares the site's own <code>@font-face</code> so the headline renders in <b>Linear's real Inter Variable</b> — not a fallback. Then swap in your content and export to an editable React + Tailwind project.</em></sub></p>
+<p align="center"><sub><em><b>⭐ The Archive — vercel.com, cloned so it <u>works</u>.</b> This is running <b>offline</b> from a recorded archive: the real Next.js code booted, and clicking a nav item performs a genuine <b>client-side transition</b> (content swaps, no reload) from the cached RSC data — <b>not a re-render, the actual behavior</b>. Tabs, filters, lists, and scroll-load work the same way, because it is the site's own code driving its own data.</em></sub></p>
+
+<p align="center">
+  <img src="./docs/clone-linear.png?v=3230" alt="UIForge freeze of linear.app, the live site and the pixel-faithful freeze side by side in Linear's own Inter Variable webfont." width="100%">
+</p>
+<p align="center"><sub><em><b>The Freeze — linear.app, pixel-faithful.</b> The site's real CSS and <code>@font-face</code> kept, so the headline is <b>Linear's real Inter Variable</b>. And a <b>Rebuild</b> turns any of this into an editable React + Tailwind project with your content.</em></sub></p>
 
 ---
 
-## Three outputs from one site
+## Three outputs from one site — *behave*, *look*, *edit*
 
-*Look*, *edit*, and *behave* are different copies, so UIForge makes all three:
+Most tools give you a still. UIForge gives you the **behavior** first, then the look and the editable code:
 
 | | what it is | for |
 |---|---|---|
-| **Freeze** (`uiforge-freeze`) | a self-contained, **pixel-faithful** replica — real CSS/fonts/assets kept, scripts stripped, time frozen | an exact, offline still — and the **oracle** the rebuild is measured against |
+| **⭐ Archive** (`uiforge-archive`) | the **complete behavior** — the site's own code + every recorded response, replayed offline | a copy that **works**: tabs, filters, lists, client-side transitions, motion, scroll |
+| **Freeze** (`uiforge-freeze`) | a self-contained, **pixel-faithful** still — real CSS/fonts/assets kept, scripts stripped, time frozen | an exact offline still — and the **oracle** the rebuild is measured against |
 | **Rebuild** (`uiforge-export`) | a **clean, componentized** Vite + React + Tailwind project — components, Tailwind classes, content externalized | building on the design, editing, shipping with **your** content |
-| **Archive** (`uiforge-archive`) | the **complete behavior** — the site's own code + every recorded response, replayed offline | a copy that *works*: tabs, filters, lists, client-side transitions, motion, scroll |
 
-The freeze renders identical to the live site (it *is* its CSS); the rebuild is diffed against that freeze — offline, deterministic — so componentization can't silently break fidelity; and the archive **runs the real JavaScript** against cached data, so every interaction behaves exactly as the original (a clicked tab swaps content, a filtered list updates — no reconstruction, because it *is* the behavior).
+The **archive runs the real JavaScript** against cached data, so every interaction behaves exactly as the original — no reconstruction, because it *is* the behavior. (This is why it beats "Save As": a naive save of a modern app never records the XHR/API data the app fetches, so it opens as a broken shell — the archive records *and replays* that data.) The freeze renders identical to the live site (it *is* its CSS); the rebuild is diffed against that freeze — offline, deterministic — so componentization can't silently break fidelity.
 
 ## Copied, five ways
 
@@ -112,22 +117,29 @@ Or locally: `git clone https://github.com/TaewoooPark/UIForge.git && claude --pl
 
 # Clone a site
 
-## The command
+## The command — one command, three modes
 
 ```
-/uiforge:clone <url│file.html> [--content path.md] [--react]
+/uiforge:clone <url│file.html> [--archive] [--react] [--content path.md] [--explore] [--headed] [--profile dir]
 ```
 
-or just say it:
+| you want… | say | what it does |
+|---|---|---|
+| a copy that **works / behaves** | `--archive`, or *"clone it so it actually works"* | ⭐ records the real code + data → an offline **replay** where tabs/filters/lists/transitions work |
+| **editable** React with **your** content | `--react`, or *"…for my product (product.md)"* | a clean componentized React + Tailwind **rebuild** |
+| a **pixel-faithful** still | *(default)* / `--freeze` | a self-contained **freeze** |
+
+Or just say it — the agent picks the mode:
 
 ```
-Clone the design of linear.app using the content in landing.md.
-Make a site with the same design as stripe.com, but for my product (see product.md).
+Clone vercel.com so it actually works — the tabs and pricing should switch.   → Archive
+Make a site with the same design as stripe.com, but for my product (product.md). → Rebuild
+Give me an exact offline copy of linear.app's landing page.                     → Freeze
 ```
 
-You give a **reference** (the design) and, optionally, **your content** (a markdown
-file). UIForge produces a clean, editable build whose design is the reference's and
-whose content is yours.
+**Behind Cloudflare or a login?** add `--headed --profile ./prof` (a persistent profile logs in once and reuses the session). The **Archive** mode always runs `--explore` — it clicks in-page controls and scrolls during capture so the data those interactions fetch is recorded; the more it explores, the more that works offline.
+
+> Running the tools directly: **Archive** — `node tools/uiforge-archive.mjs <url> --out-dir ./archive --explore` then `node ./archive/serve.mjs`. **Rebuild** — `capture → theme → export --assets`. **Freeze** — `uiforge-freeze <url> --inline`. See [The tools](#the-tools).
 
 ## The pipeline
 
