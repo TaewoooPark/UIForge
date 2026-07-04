@@ -130,8 +130,9 @@ function jsxAttrs(a, rewrite, svg) {
     // boolean attributes → real boolean (React treats "" as false)
     const lk = k.toLowerCase()
     if (BOOL.has(lk) && (v === '' || v === lk || v === k || v === 'true')) { out.push(`${k}={true}`); continue }
-    // JSX-invalid attribute name guard
-    if (/[^a-zA-Z0-9:_-]/.test(k)) continue
+    // JSX-valid attribute names only: a plain name or a proper ns:name. Skips garbage that malformed
+    // source HTML produces (unquoted alt split into bare attrs → "13-inch", "colors:", "5", …).
+    if (!/^[A-Za-z_][\w-]*(:[A-Za-z_][\w-]*)?$/.test(k)) continue
     out.push(`${k}={${JSON.stringify(v)}}`)
   }
   return out.length ? ' ' + out.join(' ') : ''
@@ -229,16 +230,18 @@ async function completeAssets(outDir, texts) {
   const pub = path.join(outDir, 'public', '_archive')
   const refs = new Set()
   for (const text of texts) for (const m of text.matchAll(/\/_archive\/([A-Za-z0-9._:-]+\/[^)"'\s?]+)/g)) refs.add(m[1])
-  let fetched = 0, missing = 0, checked = 0
-  for (const ref of refs) {
-    if (checked++ > 400) break
-    const local = path.join(pub, ref)
-    if (existsSync(local)) continue
-    const slash = ref.indexOf('/'); const host = ref.slice(0, slash), p = ref.slice(slash)
-    const r = await fetchTO(`https://${host}${p}`, 8000)
-    if (r && r.ok) { try { mkdirSync(path.dirname(local), { recursive: true }); writeFileSync(local, Buffer.from(await r.arrayBuffer())); fetched++ } catch { missing++ } }
-    else missing++
+  const todo = [...refs].filter(ref => !existsSync(path.join(pub, ref))).slice(0, 500)
+  let fetched = 0, missing = 0, i = 0
+  const worker = async () => {
+    while (i < todo.length) {
+      const ref = todo[i++]
+      const slash = ref.indexOf('/'); const host = ref.slice(0, slash), p = ref.slice(slash)
+      const r = await fetchTO(`https://${host}${p}`, 6000)
+      if (r && r.ok) { try { const local = path.join(pub, ref); mkdirSync(path.dirname(local), { recursive: true }); writeFileSync(local, Buffer.from(await r.arrayBuffer())); fetched++ } catch { missing++ } }
+      else missing++
+    }
   }
+  await Promise.all(Array.from({ length: 12 }, worker))   // 12-way concurrency (was sequential → slow)
   return { fetched, missing }
 }
 
